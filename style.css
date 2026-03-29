@@ -1,0 +1,224 @@
+:root {
+    --apple-bg: #f5f5f7;
+    --apple-primary: #0071e3;
+    --apple-primary-hover: #0077ed;
+    --apple-text: #1d1d1f;
+    --apple-secondary-text: #86868b;
+    --apple-card-bg: rgba(255, 255, 255, 0.82);
+    --apple-border: rgba(0, 0, 0, 0.1);
+    --apple-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--apple-bg);
+    color: var(--apple-text);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+#app {
+    width: 100%;
+    max-width: 400px;
+    position: relative;
+    padding: 20px;
+}
+
+.view {
+    display: none;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.view.active {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.card {
+    background-color: var(--apple-card-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--apple-border);
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: var(--apple-shadow);
+    text-align: center;
+}
+
+.logo-container {
+    margin-bottom: 24px;
+}
+
+.logo {
+    width: 32px;
+    height: 32px;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+}
+
+.subtitle {
+    color: var(--apple-secondary-text);
+    font-size: 17px;
+    margin-bottom: 32px;
+}
+
+.input-group {
+    margin-bottom: 12px;
+}
+
+input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--apple-border);
+    background-color: rgba(255, 255, 255, 0.5);
+    font-size: 16px;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--apple-primary);
+    background-color: #fff;
+}
+
+.btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.btn-primary {
+    background-color: var(--apple-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--apple-primary-hover);
+}
+
+.btn-secondary {
+    background-color: transparent;
+    border: 1px solid var(--apple-primary);
+    color: var(--apple-primary);
+}
+
+.btn-secondary:hover {
+    background-color: rgba(0, 113, 227, 0.05);
+}
+
+.btn-google {
+    background-color: #fff;
+    border: 1px solid var(--apple-border);
+    color: #000;
+}
+
+.btn-google img {
+    width: 20px;
+    height: 20px;
+}
+
+.btn-google:hover {
+    background-color: #f5f5f7;
+}
+
+.divider {
+    margin: 24px 0;
+    position: relative;
+    text-align: center;
+}
+
+.divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: var(--apple-border);
+}
+
+.divider span {
+    position: relative;
+    background-color: white;
+    padding: 0 12px;
+    color: var(--apple-secondary-text);
+    font-size: 14px;
+}
+
+.footer-links {
+    margin-top: 32px;
+    font-size: 14px;
+    color: var(--apple-secondary-text);
+}
+
+.footer-links a {
+    color: var(--apple-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.footer-links a:hover {
+    text-decoration: underline;
+}
+
+/* Welcome View */
+.welcome-container {
+    text-align: center;
+    padding: 40px;
+    animation: fadeIn 1s ease-out;
+}
+
+.welcome-text {
+    font-size: 42px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #000 0%, #444 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.welcome-subtext {
+    color: var(--apple-secondary-text);
+    font-size: 20px;
+    margin-bottom: 32px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .card {
+        padding: 30px 20px;
+    }
+}

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | World</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Login Screen -->
+        <section id="login-view" class="view active">
+            <div class="card">
+                <div class="logo-container">
+                    <img src="https://img.icons8.com/ios-filled/100/000000/apple-logo.png" alt="Logo" class="logo">
+                </div>
+                <h1>Sign in</h1>
+                <p class="subtitle">Use your Account</p>
+
+                <form id="login-form">
+                    <div class="input-group">
+                        <input type="email" id="login-email" placeholder="Email" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="login-password" placeholder="Password" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Continue</button>
+                    
+                    <div class="divider">
+                        <span>or</span>
+                    </div>
+
+                    <button type="button" class="btn btn-google">
+                        <img src="https://img.icons8.com/color/48/000000/google-logo.png" alt="Google">
+                        Sign in with Google
+                    </button>
+                </form>
+
+                <div class="footer-links">
+                    <p>Don't have an account? <a href="#" id="go-to-signup">Create one</a></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Signup Screen -->
+        <section id="signup-view" class="view">
+            <div class="card">
+                <h1>Create Account</h1>
+                <p class="subtitle">Join our community today</p>
+
+                <form id="signup-form">
+                    <div class="input-group">
+                        <input type="text" id="signup-name" placeholder="Full Name" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="email" id="signup-email" placeholder="Email" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="signup-password" placeholder="Password" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">Create Account</button>
+                </form>
+
+                <div class="footer-links">
+                    <p>Already have an account? <a href="#" id="go-to-login">Sign in</a></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Welcome Screen -->
+        <section id="welcome-view" class="view">
+            <div class="welcome-container">
+                <h1 class="welcome-text">Hello World + <span id="user-name-display">User</span></h1>
+                <p class="welcome-subtext">Welcome back to your elegant dashboard.</p>
+                <button type="button" id="logout-btn" class="btn btn-secondary">Sign out</button>
+            </div>
+        </section>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
