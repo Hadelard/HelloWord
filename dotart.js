@@ -65,18 +65,117 @@ document.addEventListener('DOMContentLoaded', () => {
   function setStatus(html) { statusEl.innerHTML = html; }
 
   // ─────────────────────────────────────────────
-  // D. Geometric validation (RF-014)
+  // C2. i18n
   // ─────────────────────────────────────────────
-  const GEO_RULES = {
-    triangle: {
-      dome:  'Dome top on a triangular base creates unstable overhangs. Consider Flat or Spike instead.',
+  const LANG = {
+    en: {
+      nav:        { back: '← Back' },
+      subtitle:   'Upload an image, configure your dot dimensions and color count, then generate your 3D dot art map. Export the unit dot in STL or 3MF, or download the full project ready for Bambu Lab slicers.',
+      label:      { image: 'Image', dotDiameter: 'Dot diameter / width', dotHeight: 'Dot height', colorCount: 'Number of colors', frameWidth: 'Frame width', dotShape: 'Dot shape', topStyle: 'Top style' },
+      hint:       { image: 'PNG, JPG or WebP.', frame: 'Height calculated proportionally from the image.' },
+      btn:        { generate: 'Generate dot art', downloadMap: 'Download manual', saveProject: 'Save full project (.3mf)', exportStl: 'Export STL (unit dot)' },
+      shape:      { circle: 'Circular', hex: 'Hexagonal', square: 'Square', triangle: 'Triangular' },
+      shapeLabel: { circle: 'circular', hex: 'hexagonal', square: 'square', triangle: 'triangular' },
+      top:        { flat: 'Flat', dome: 'Dome / Oval', spike: 'Spike' },
+      topLabel:   { flat: 'flat', dome: 'dome/oval', spike: 'spike' },
+      card:       { original: 'Original image', dotmap: 'Dot art map', preview: '3D unit dot preview', colors: 'Color summary' },
+      stat:       { grid: 'Columns \u00d7 rows', totalDots: 'Total dots', frameSize: 'Frame size', unitDot: 'Unit dot' },
+      palette:    { color: 'Color', dots: 'dots' },
+      preview:    { drag: 'drag to rotate' },
+      slider:     { cm: 'cm', color: 'color', colors: 'colors' },
+      placeholder: 'Upload an image to get started',
+      geo:        { triangleDome: 'Dome top on a triangular base creates unstable overhangs. Consider Flat or Spike instead.' },
+      status: {
+        upload:       'Upload an image to get started.',
+        imageLoaded:  'Image loaded. Configure the parameters and click <strong>Generate</strong>.',
+        imageError:   'Could not open this image. Please try a different file.',
+        processing:   'Processing\u2026',
+        gridTooLarge: 'The frame width produces a grid that is too large. Reduce the width or increase the dot diameter.',
+        transparent:  'Image appears to be fully transparent.',
+        done:         '<strong>Done.</strong> {cols} \u00d7 {rows} dots, {colors} colors. Export the unit dot or save the full project.',
+        projectSaved: '<strong>Full project saved.</strong> {plates} plates of {bed} \u00d7 {bed} cm, up to {perPlate} dots per plate. Open in Bambu Studio or Orca Slicer \u2014 colors and plates are pre-assigned.',
+        projectError: 'Could not save the full project.',
+      },
+    },
+    'pt-BR': {
+      nav:        { back: '← Voltar' },
+      subtitle:   'Carregue uma imagem, configure as dimens\u00f5es dos pontos e o n\u00famero de cores, depois gere o mapa de dot art 3D. Exporte o ponto unit\u00e1rio em STL ou 3MF, ou baixe o projeto completo pronto para slicers Bambu Lab.',
+      label:      { image: 'Imagem', dotDiameter: 'Di\u00e2metro / largura do ponto', dotHeight: 'Altura do ponto', colorCount: 'N\u00famero de cores', frameWidth: 'Largura do quadro', dotShape: 'Forma do ponto', topStyle: 'Estilo do topo' },
+      hint:       { image: 'PNG, JPG ou WebP.', frame: 'Altura calculada proporcionalmente \u00e0 imagem.' },
+      btn:        { generate: 'Gerar dot art', downloadMap: 'Baixar manual', saveProject: 'Salvar projeto completo (.3mf)', exportStl: 'Exportar STL (ponto unit\u00e1rio)' },
+      shape:      { circle: 'Circular', hex: 'Hexagonal', square: 'Quadrado', triangle: 'Triangular' },
+      shapeLabel: { circle: 'circular', hex: 'hexagonal', square: 'quadrado', triangle: 'triangular' },
+      top:        { flat: 'Plano', dome: 'Domo / Oval', spike: 'Ponta' },
+      topLabel:   { flat: 'plano', dome: 'domo/oval', spike: 'ponta' },
+      card:       { original: 'Imagem original', dotmap: 'Mapa de pontos', preview: 'Pr\u00e9-visualiza\u00e7\u00e3o 3D', colors: 'Resumo de cores' },
+      stat:       { grid: 'Colunas \u00d7 linhas', totalDots: 'Total de pontos', frameSize: 'Tamanho do quadro', unitDot: 'Ponto unit\u00e1rio' },
+      palette:    { color: 'Cor', dots: 'pontos' },
+      preview:    { drag: 'arraste para girar' },
+      slider:     { cm: 'cm', color: 'cor', colors: 'cores' },
+      placeholder: 'Carregue uma imagem para come\u00e7ar',
+      geo:        { triangleDome: 'Topo domo em base triangular cria ressaltos inst\u00e1veis. Considere Plano ou Ponta.' },
+      status: {
+        upload:       'Carregue uma imagem para come\u00e7ar.',
+        imageLoaded:  'Imagem carregada. Configure os par\u00e2metros e clique em <strong>Gerar</strong>.',
+        imageError:   'N\u00e3o foi poss\u00edvel abrir esta imagem. Tente outro arquivo.',
+        processing:   'Processando\u2026',
+        gridTooLarge: 'A largura do quadro gera uma grade muito grande. Reduza a largura ou aumente o di\u00e2metro do ponto.',
+        transparent:  'A imagem parece ser totalmente transparente.',
+        done:         '<strong>Conclu\u00eddo.</strong> {cols} \u00d7 {rows} pontos, {colors} cores. Exporte o ponto unit\u00e1rio ou salve o projeto completo.',
+        projectSaved: '<strong>Projeto salvo.</strong> {plates} placas de {bed} \u00d7 {bed} cm, at\u00e9 {perPlate} pontos por placa. Abra no Bambu Studio ou Orca Slicer \u2014 cores e placas j\u00e1 atribu\u00eddas.',
+        projectError: 'N\u00e3o foi poss\u00edvel salvar o projeto completo.',
+      },
+    },
+    es: {
+      nav:        { back: '← Volver' },
+      subtitle:   'Sube una imagen, configura las dimensiones de los puntos y el n\u00famero de colores, luego genera el mapa de dot art 3D. Exporta el punto unitario en STL o 3MF, o descarga el proyecto completo listo para slicers Bambu Lab.',
+      label:      { image: 'Imagen', dotDiameter: 'Di\u00e1metro / ancho del punto', dotHeight: 'Altura del punto', colorCount: 'N\u00famero de colores', frameWidth: 'Ancho del marco', dotShape: 'Forma del punto', topStyle: 'Estilo de la cima' },
+      hint:       { image: 'PNG, JPG o WebP.', frame: 'La altura se calcula proporcionalmente a la imagen.' },
+      btn:        { generate: 'Generar dot art', downloadMap: 'Descargar manual', saveProject: 'Guardar proyecto completo (.3mf)', exportStl: 'Exportar STL (punto unitario)' },
+      shape:      { circle: 'Circular', hex: 'Hexagonal', square: 'Cuadrado', triangle: 'Triangular' },
+      shapeLabel: { circle: 'circular', hex: 'hexagonal', square: 'cuadrado', triangle: 'triangular' },
+      top:        { flat: 'Plano', dome: 'Domo / Oval', spike: 'Punta' },
+      topLabel:   { flat: 'plano', dome: 'domo/oval', spike: 'punta' },
+      card:       { original: 'Imagen original', dotmap: 'Mapa de puntos', preview: 'Vista previa 3D', colors: 'Resumen de colores' },
+      stat:       { grid: 'Columnas \u00d7 filas', totalDots: 'Total de puntos', frameSize: 'Tama\u00f1o del marco', unitDot: 'Punto unitario' },
+      palette:    { color: 'Color', dots: 'puntos' },
+      preview:    { drag: 'arrastrar para rotar' },
+      slider:     { cm: 'cm', color: 'color', colors: 'colores' },
+      placeholder: 'Sube una imagen para comenzar',
+      geo:        { triangleDome: 'La cima domo en base triangular crea voladizos inestables. Considera Plano o Punta.' },
+      status: {
+        upload:       'Sube una imagen para comenzar.',
+        imageLoaded:  'Imagen cargada. Configura los par\u00e1metros y haz clic en <strong>Generar</strong>.',
+        imageError:   'No se pudo abrir esta imagen. Intenta con otro archivo.',
+        processing:   'Procesando\u2026',
+        gridTooLarge: 'El ancho del marco genera una cuadr\u00edcula demasiado grande. Reduce el ancho o aumenta el di\u00e1metro del punto.',
+        transparent:  'La imagen parece ser completamente transparente.',
+        done:         '<strong>\u00a1Listo!</strong> {cols} \u00d7 {rows} puntos, {colors} colores. Exporta el punto unitario o guarda el proyecto.',
+        projectSaved: '<strong>Proyecto guardado.</strong> {plates} placas de {bed} \u00d7 {bed} cm, hasta {perPlate} puntos por placa. Abre en Bambu Studio u Orca Slicer \u2014 colores y placas ya asignados.',
+        projectError: 'No se pudo guardar el proyecto completo.',
+      },
     },
   };
 
+  let currentLang = 'en';
+
+  function t(path) {
+    const keys = path.split('.');
+    const get = obj => { let c = obj; for (const k of keys) c = c?.[k]; return c; };
+    return get(LANG[currentLang]) ?? get(LANG.en) ?? path;
+  }
+
+  function tFmt(path, vals) {
+    return t(path).replace(/\{(\w+)\}/g, (_, k) => String(vals[k] ?? ''));
+  }
+
+  // ─────────────────────────────────────────────
+  // D. Geometric validation (RF-014)
+  // ─────────────────────────────────────────────
   function checkGeometry() {
     const shape = controls.shapeFamily.value;
     const top   = controls.topStyle.value;
-    const msg   = (GEO_RULES[shape] || {})[top] || null;
+    const msg   = (shape === 'triangle' && top === 'dome') ? t('geo.triangleDome') : null;
     if (msg) {
       geoWarningText.textContent = ' ' + msg;
       geoWarning.classList.remove('hidden');
@@ -330,11 +429,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx = dotPreviewCanvas.getContext('2d');
     const W = dotPreviewCanvas.width, H = dotPreviewCanvas.height;
 
-    // Background gradient
+    // Background gradient (theme-aware)
     ctx.clearRect(0, 0, W, H);
     const grd = ctx.createLinearGradient(0, 0, 0, H);
-    grd.addColorStop(0, '#f0f4ff');
-    grd.addColorStop(1, '#dbeafe');
+    if (isDark()) {
+      grd.addColorStop(0, '#2c2c2e');
+      grd.addColorStop(1, '#1c1c1e');
+    } else {
+      grd.addColorStop(0, '#f0f4ff');
+      grd.addColorStop(1, '#dbeafe');
+    }
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, W, H);
 
@@ -424,18 +528,18 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.stroke();
     }
 
-    // 8. Info labels (bottom-left)
-    ctx.fillStyle = 'rgba(29,29,31,0.7)';
+    // 8. Info labels (bottom-left, theme-aware)
+    ctx.fillStyle = isDark() ? 'rgba(245,245,247,0.6)' : 'rgba(29,29,31,0.6)';
     ctx.font = '12px Inter, Arial';
     ctx.fillText(`${labelShape(controls.shapeFamily.value)} / ${labelTop(controls.topStyle.value)}`, 14, H - 44);
     ctx.fillText(`⌀ ${round(Number(controls.dotDiameterCm.value), 1)} cm  ×  ${round(Number(controls.dotHeightCm.value), 1)} cm`, 14, H - 26);
 
     // 9. Drag hint (fades after first interaction)
     if (!previewInteracted) {
-      ctx.fillStyle = 'rgba(0,113,227,0.45)';
+      ctx.fillStyle = isDark() ? 'rgba(10,132,255,0.55)' : 'rgba(0,113,227,0.45)';
       ctx.font = '12px Inter, Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('drag to rotate', W / 2, H - 10);
+      ctx.fillText(t('preview.drag'), W / 2, H - 10);
       ctx.textAlign = 'left';
     }
   }
@@ -500,8 +604,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   dotPreviewCanvas.addEventListener('touchend', () => { previewDragging = false; });
 
-  const labelShape = v => ({ circle: 'circular', hex: 'hexagonal', square: 'square', triangle: 'triangular' })[v] || v;
-  const labelTop   = v => ({ flat: 'flat', dome: 'dome/oval', spike: 'spike' })[v] || v;
+  const labelShape = v => t('shapeLabel.' + v) || v;
+  const labelTop   = v => t('topLabel.' + v) || v;
 
   // ─────────────────────────────────────────────
   // I. Mesh building
@@ -537,7 +641,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function buildDotMesh() {
     const diameter = mm(clamp(Number(controls.dotDiameterCm.value), 1, 10));
-    const height   = mm(clamp(Number(controls.dotHeightCm.value),   1, 3));
+    const height   = mm(clamp(Number(controls.dotHeightCm.value),   1, 10));
     const family   = controls.shapeFamily.value;
     const topStyle = controls.topStyle.value;
     const base     = makePolygon2D(family, diameter / 2);
@@ -1058,10 +1162,10 @@ ${objectNodes}
     const dotDia    = Number(controls.dotDiameterCm.value);
     const dotHeight = Number(controls.dotHeightCm.value);
     statsEl.innerHTML = `
-      <div class="stat-card"><div class="stat-label">Columns × rows</div><div class="stat-value">${state.cols} × ${state.rows}</div></div>
-      <div class="stat-card"><div class="stat-label">Total dots</div><div class="stat-value">${state.cols * state.rows}</div></div>
-      <div class="stat-card"><div class="stat-label">Frame size</div><div class="stat-value">${round(state.frameWidthCm,1)} × ${round(state.frameHeightCm,1)} cm</div></div>
-      <div class="stat-card"><div class="stat-label">Unit dot</div><div class="stat-value">⌀${round(dotDia,1)} × ${round(dotHeight,1)} cm</div></div>
+      <div class="stat-card"><div class="stat-label">${t('stat.grid')}</div><div class="stat-value">${state.cols} \u00d7 ${state.rows}</div></div>
+      <div class="stat-card"><div class="stat-label">${t('stat.totalDots')}</div><div class="stat-value">${state.cols * state.rows}</div></div>
+      <div class="stat-card"><div class="stat-label">${t('stat.frameSize')}</div><div class="stat-value">${round(state.frameWidthCm,1)} \u00d7 ${round(state.frameHeightCm,1)} cm</div></div>
+      <div class="stat-card"><div class="stat-label">${t('stat.unitDot')}</div><div class="stat-value">\u00d8${round(dotDia,1)} \u00d7 ${round(dotHeight,1)} cm</div></div>
     `;
   }
 
@@ -1071,12 +1175,12 @@ ${objectNodes}
       <div class="swatch">
         <div class="swatch-box" style="background:${rgbToHex(color)}"></div>
         <div>
-          <div class="swatch-name">Color ${i+1}</div>
+          <div class="swatch-name">${t('palette.color')} ${i+1}</div>
           <div class="swatch-hex">${rgbToHex(color)}</div>
         </div>
         <div class="swatch-count">
           <strong>${state.counts[i] || 0}</strong>
-          <span>dots</span>
+          <span>${t('palette.dots')}</span>
         </div>
       </div>`).join('');
   }
@@ -1124,13 +1228,13 @@ ${objectNodes}
     [sourceCanvas, dotCanvas].forEach(canvas => {
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#f0f4ff';
+      ctx.fillStyle = isDark() ? '#2c2c2e' : '#f0f4ff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#86868b';
+      ctx.fillStyle = isDark() ? '#636366' : '#86868b';
       ctx.font = '15px Inter, Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Upload an image to get started', canvas.width / 2, canvas.height / 2);
+      ctx.fillText(t('placeholder'), canvas.width / 2, canvas.height / 2);
     });
     renderDotPreview();
   }
@@ -1139,20 +1243,20 @@ ${objectNodes}
   // R. Generate
   // ─────────────────────────────────────────────
   async function generate() {
-    if (!state.image) { setStatus('Please upload an image first.'); return; }
+    if (!state.image) { setStatus(t('status.upload')); return; }
 
     const dotDiameterCm = clamp(Number(controls.dotDiameterCm.value) || 2, 1, 10);
-    const dotHeightCm   = clamp(Number(controls.dotHeightCm.value)   || 2, 1, 3);
-    const colorCount    = clamp(Math.round(Number(controls.colorCount.value) || 6), 1, 20);
-    const frameWidthCm  = Math.max(5, Number(controls.frameWidthCm.value) || 40);
+    const dotHeightCm   = clamp(Number(controls.dotHeightCm.value)   || 2, 1, 10);
+    const colorCount    = clamp(Math.round(Number(controls.colorCount.value) || 6), 2, 20);
+    const frameWidthCm  = Math.max(20, Number(controls.frameWidthCm.value) || 40);
 
     const cols = Math.max(1, Math.floor(frameWidthCm / dotDiameterCm));
     if (cols > 220) {
-      setStatus('The frame width produces a grid that is too large. Reduce the width or increase the dot diameter.');
+      setStatus(t('status.gridTooLarge'));
       return;
     }
 
-    setStatus('Processing…');
+    setStatus(t('status.processing'));
     generateBtn.disabled = true;
 
     // Yield to browser so the status message renders
@@ -1161,7 +1265,7 @@ ${objectNodes}
     const sampled = sampleGrid(state.image, cols);
     // Filter out transparent pixels for quantization only
     const opaquePixels = sampled.pixels.filter(p => p !== null);
-    if (opaquePixels.length === 0) { setStatus('Image appears to be fully transparent.'); generateBtn.disabled = false; return; }
+    if (opaquePixels.length === 0) { setStatus(t('status.transparent')); generateBtn.disabled = false; return; }
     const q = kmeansQuantize(opaquePixels, colorCount);
 
     // Build full grid assignments (transparent cells → nearest opaque neighbor, or color 0)
@@ -1187,14 +1291,84 @@ ${objectNodes}
     updatePalette();
     updateStats();
 
-    setStatus(`<strong>Done.</strong> ${state.cols} × ${state.rows} dots, ${state.palette.length} colors. Export the unit dot or save the full project.`);
+    setStatus(tFmt('status.done', { cols: state.cols, rows: state.rows, colors: state.palette.length }));
 
     [downloadMapBtn, exportStlBtn, export3mfBtn, saveProjectBtn].forEach(b => b.disabled = false);
     generateBtn.disabled = false;
   }
 
   // ─────────────────────────────────────────────
-  // S. Event listeners
+  // S. Dark mode toggle
+  // ─────────────────────────────────────────────
+  const html = document.documentElement;
+
+  function isDark() { return html.getAttribute('data-theme') === 'dark'; }
+
+  function applyTheme(dark) {
+    if (dark) html.setAttribute('data-theme', 'dark');
+    else html.removeAttribute('data-theme');
+    // Re-render canvases with correct theme colors
+    if (state.grid) { renderOriginal(); renderDotMap(); }
+    else drawPlaceholder();
+    renderDotPreview();
+  }
+
+  // ─────────────────────────────────────────────
+  // S2. Language selection
+  // ─────────────────────────────────────────────
+  const LANG_LABELS = { en: 'EN', 'pt-BR': 'PT', es: 'ES' };
+
+  function applyLanguage(lang) {
+    currentLang = LANG[lang] ? lang : 'en';
+    localStorage.setItem('dotart-lang', currentLang);
+
+    // Update button label
+    el('langLabel').textContent = LANG_LABELS[currentLang] || currentLang.toUpperCase().slice(0, 2);
+
+    // Mark active option
+    document.querySelectorAll('.lang-option').forEach(opt => {
+      opt.classList.toggle('active', opt.dataset.lang === currentLang);
+    });
+
+    // Update all static text elements
+    document.querySelectorAll('[data-i18n]').forEach(node => {
+      node.textContent = t(node.getAttribute('data-i18n'));
+    });
+
+    // Update shape select options
+    Array.from(controls.shapeFamily.options).forEach(opt => { opt.text = t('shape.' + opt.value); });
+    // Update top style select options
+    Array.from(controls.topStyle.options).forEach(opt => { opt.text = t('top.' + opt.value); });
+
+    // Refresh dynamic UI
+    updateSliderDisplays();
+    checkGeometry();
+    if (state.grid) {
+      updateStats();
+      updatePalette();
+    } else {
+      setStatus(t('status.upload'));
+    }
+
+    // Re-render canvases (their text is language-aware)
+    if (state.grid) { renderOriginal(); renderDotMap(); }
+    else drawPlaceholder();
+    renderDotPreview();
+  }
+
+  // Load saved preference (or respect OS preference on first visit)
+  const savedTheme = localStorage.getItem('dotart-theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) applyTheme(true);
+
+  el('themeToggle').addEventListener('click', () => {
+    const dark = !isDark();
+    localStorage.setItem('dotart-theme', dark ? 'dark' : 'light');
+    applyTheme(dark);
+  });
+
+  // ─────────────────────────────────────────────
+  // T. Event listeners
   // ─────────────────────────────────────────────
   imageInput.addEventListener('change', async e => {
     const file = e.target.files?.[0];
@@ -1205,13 +1379,35 @@ ${objectNodes}
       state.originalWidth  = img.width;
       state.originalHeight = img.height;
       renderOriginal();
-      setStatus('Image loaded. Configure the parameters and click <strong>Generate</strong>.');
+      setStatus(t('status.imageLoaded'));
     } catch {
-      setStatus('Could not open this image. Please try a different file.');
+      setStatus(t('status.imageError'));
     }
   });
 
-  Object.values(controls).forEach(el => el.addEventListener('input', () => {
+  // Update slider value badges and track fill on every input
+  function updateSliderDisplays() {
+    const d = controls.dotDiameterCm, h = controls.dotHeightCm;
+    const c = controls.colorCount,   f = controls.frameWidthCm;
+
+    el('dotDiameterVal').textContent = `${round(Number(d.value), 1)} cm`;
+    el('dotHeightVal').textContent   = `${round(Number(h.value), 1)} cm`;
+    el('colorCountVal').textContent  = `${c.value} ${Number(c.value) === 1 ? t('slider.color') : t('slider.colors')}`;
+    el('frameWidthVal').textContent  = `${f.value} cm`;
+
+    // Update CSS custom property for the blue fill on WebKit
+    const pct = slider => {
+      const min = Number(slider.min), max = Number(slider.max), val = Number(slider.value);
+      return `${((val - min) / (max - min)) * 100}%`;
+    };
+    d.style.setProperty('--pct', pct(d));
+    h.style.setProperty('--pct', pct(h));
+    c.style.setProperty('--pct', pct(c));
+    f.style.setProperty('--pct', pct(f));
+  }
+
+  Object.values(controls).forEach(ctrl => ctrl.addEventListener('input', () => {
+    updateSliderDisplays();
     renderDotPreview();
     checkGeometry();
   }));
@@ -1235,19 +1431,36 @@ ${objectNodes}
     try {
       const result = buildFullProject3MF();
       downloadBlob(result.blob, 'dotart_full_project.3mf');
-      setStatus(
-        `<strong>Full project saved.</strong> ${result.meta.totalPlates} plates of ` +
-        `${result.meta.bed/10} × ${result.meta.bed/10} cm, up to ${result.meta.perPlate} dots per plate. ` +
-        `Open in Bambu Studio or Orca Slicer — colors and plates are pre-assigned.`
-      );
+      setStatus(tFmt('status.projectSaved', { plates: result.meta.totalPlates, bed: result.meta.bed / 10, perPlate: result.meta.perPlate }));
     } catch (err) {
-      setStatus(err.message || 'Could not save the full project.');
+      setStatus(err.message || t('status.projectError'));
     }
   });
 
   downloadMapBtn.addEventListener('click', () => {
     const html = buildProductionHTML();
     downloadBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), 'dotart_manual.html');
+  });
+
+  // Language picker
+  const langBtn      = el('langBtn');
+  const langDropdown = el('langDropdown');
+  const langPicker   = el('langPicker');
+
+  langBtn.addEventListener('click', e => {
+    langDropdown.classList.toggle('open');
+    e.stopPropagation();
+  });
+
+  document.querySelectorAll('.lang-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      applyLanguage(btn.dataset.lang);
+      langDropdown.classList.remove('open');
+    });
+  });
+
+  document.addEventListener('click', e => {
+    if (!langPicker.contains(e.target)) langDropdown.classList.remove('open');
   });
 
   // ─────────────────────────────────────────────
@@ -1275,7 +1488,11 @@ ${objectNodes}
   dotPreviewCanvas.style.touchAction = 'none';
 
   initCanvasSizes();
-  drawPlaceholder();
+  updateSliderDisplays();
   checkGeometry();
+
+  // Init language (loads from localStorage, falls back to 'en')
+  const savedLang = localStorage.getItem('dotart-lang') || 'en';
+  applyLanguage(savedLang);
 
 });

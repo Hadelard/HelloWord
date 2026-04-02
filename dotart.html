@@ -12,16 +12,47 @@
 <body>
 
   <nav class="navbar">
-    <a href="index.html" class="nav-back">← Back</a>
+    <a href="index.html" class="nav-back" data-i18n="nav.back">← Back</a>
     <span class="nav-title">DotArt Maker 3D</span>
     <span class="nav-spacer"></span>
+
+    <!-- Language picker -->
+    <div class="lang-picker" id="langPicker">
+      <button class="lang-btn" id="langBtn" aria-label="Select language">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        <span id="langLabel">EN</span>
+      </button>
+      <div class="lang-dropdown" id="langDropdown">
+        <button class="lang-option" data-lang="pt-BR"><span class="lang-flag">🇧🇷</span>Português</button>
+        <button class="lang-option" data-lang="en"><span class="lang-flag">🇺🇸</span>English</button>
+        <button class="lang-option" data-lang="es"><span class="lang-flag">🇪🇸</span>Español</button>
+      </div>
+    </div>
+
+    <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
+      <!-- Moon: shown in light mode -->
+      <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+      <!-- Sun: shown in dark mode -->
+      <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="5"/>
+        <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+        <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+      </svg>
+    </button>
   </nav>
 
   <div class="page-wrap">
 
     <header class="page-header">
       <h1>DotArt Maker 3D</h1>
-      <p class="page-subtitle">
+      <p class="page-subtitle" data-i18n="subtitle">
         Upload an image, configure your dot dimensions and color count, then
         generate your 3D dot art map. Export the unit dot in STL or 3MF, or
         download the full project ready for Bambu Lab slicers.
@@ -34,35 +65,47 @@
       <aside class="panel">
 
         <div class="control-group">
-          <label for="imageInput">Image</label>
+          <label for="imageInput" data-i18n="label.image">Image</label>
           <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" />
-          <span class="hint">PNG, JPG or WebP.</span>
+          <span class="hint" data-i18n="hint.image">PNG, JPG or WebP.</span>
         </div>
 
         <div class="control-group">
-          <label for="dotDiameterCm">Dot diameter / width (cm)</label>
-          <input id="dotDiameterCm" type="number" min="1" max="10" step="0.1" value="2" />
+          <div class="slider-header">
+            <label for="dotDiameterCm" data-i18n="label.dotDiameter">Dot diameter / width</label>
+            <span class="slider-val" id="dotDiameterVal">2.0 cm</span>
+          </div>
+          <input id="dotDiameterCm" type="range" min="1" max="10" step="0.1" value="2" class="slider" />
         </div>
 
         <div class="control-group">
-          <label for="dotHeightCm">Dot height (cm)</label>
-          <input id="dotHeightCm" type="number" min="1" max="3" step="0.1" value="2" />
+          <div class="slider-header">
+            <label for="dotHeightCm" data-i18n="label.dotHeight">Dot height</label>
+            <span class="slider-val" id="dotHeightVal">2.0 cm</span>
+          </div>
+          <input id="dotHeightCm" type="range" min="1" max="10" step="0.1" value="2" class="slider" />
         </div>
 
         <div class="control-group">
-          <label for="colorCount">Number of colors</label>
-          <input id="colorCount" type="number" min="1" max="20" step="1" value="6" />
+          <div class="slider-header">
+            <label for="colorCount" data-i18n="label.colorCount">Number of colors</label>
+            <span class="slider-val" id="colorCountVal">6 colors</span>
+          </div>
+          <input id="colorCount" type="range" min="2" max="20" step="1" value="6" class="slider" />
         </div>
 
         <div class="control-group">
-          <label for="frameWidthCm">Frame width (cm)</label>
-          <input id="frameWidthCm" type="number" min="5" max="300" step="1" value="40" />
-          <span class="hint">Height is calculated proportionally from the image.</span>
+          <div class="slider-header">
+            <label for="frameWidthCm" data-i18n="label.frameWidth">Frame width</label>
+            <span class="slider-val" id="frameWidthVal">40 cm</span>
+          </div>
+          <input id="frameWidthCm" type="range" min="20" max="200" step="1" value="40" class="slider" />
+          <span class="hint" data-i18n="hint.frame">Height calculated proportionally from the image.</span>
         </div>
 
         <div class="control-row">
           <div class="control-group">
-            <label for="shapeFamily">Dot shape</label>
+            <label for="shapeFamily" data-i18n="label.dotShape">Dot shape</label>
             <select id="shapeFamily">
               <option value="circle">Circular</option>
               <option value="hex">Hexagonal</option>
@@ -71,7 +114,7 @@
             </select>
           </div>
           <div class="control-group">
-            <label for="topStyle">Top style</label>
+            <label for="topStyle" data-i18n="label.topStyle">Top style</label>
             <select id="topStyle">
               <option value="flat">Flat</option>
               <option value="dome">Dome / Oval</option>
@@ -86,16 +129,17 @@
         </div>
 
         <div class="btn-stack">
-          <button id="generateBtn" class="btn btn-generate">Generate dot art</button>
-          <button id="downloadMapBtn" class="btn btn-secondary-action" disabled>Download manual</button>
+          <button id="generateBtn" class="btn btn-generate" data-i18n="btn.generate">Generate dot art</button>
+          <button id="downloadMapBtn" class="btn btn-secondary-action" disabled data-i18n="btn.downloadMap">Download manual</button>
         </div>
         <div class="btn-stack">
-          <button id="exportStlBtn" class="btn btn-export" disabled>Export STL</button>
-          <button id="export3mfBtn" class="btn btn-export" disabled>Export 3MF</button>
+          <button id="saveProjectBtn" class="btn btn-generate" disabled data-i18n="btn.saveProject">Save full project (.3mf)</button>
         </div>
         <div class="btn-stack">
-          <button id="saveProjectBtn" class="btn btn-generate" disabled>Save full project (.3mf)</button>
+          <button id="exportStlBtn" class="btn btn-tertiary" disabled data-i18n="btn.exportStl">Export STL (unit dot)</button>
         </div>
+        <!-- Unit 3MF hidden for now, kept in DOM for JS compatibility -->
+        <div style="display:none"><button id="export3mfBtn" disabled>Export 3MF</button></div>
 
         <div id="status" class="status">Upload an image to get started.</div>
       </aside>
@@ -107,13 +151,13 @@
 
         <div class="canvas-grid">
           <div class="canvas-card">
-            <div class="canvas-card-head">Original image</div>
+            <div class="canvas-card-head" data-i18n="card.original">Original image</div>
             <div class="canvas-card-body">
               <canvas id="sourceCanvas"></canvas>
             </div>
           </div>
           <div class="canvas-card">
-            <div class="canvas-card-head">Dot art map</div>
+            <div class="canvas-card-head" data-i18n="card.dotmap">Dot art map</div>
             <div class="canvas-card-body map-body">
               <div class="map-scroll">
                 <canvas id="dotCanvas"></canvas>
@@ -124,13 +168,13 @@
 
         <div class="canvas-grid">
           <div class="canvas-card">
-            <div class="canvas-card-head">3D unit dot preview</div>
+            <div class="canvas-card-head" data-i18n="card.preview">3D unit dot preview</div>
             <div class="canvas-card-body preview-body">
               <canvas id="dotPreviewCanvas"></canvas>
             </div>
           </div>
           <div class="canvas-card">
-            <div class="canvas-card-head">Color summary</div>
+            <div class="canvas-card-head" data-i18n="card.colors">Color summary</div>
             <div class="canvas-card-body palette-body">
               <div id="paletteList" class="palette-list"></div>
             </div>
