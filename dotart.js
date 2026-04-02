@@ -1095,13 +1095,29 @@ ${objectNodes}
   // Q. Canvas sizing
   // ─────────────────────────────────────────────
   function initCanvasSizes() {
-    const setSize = (canvas, w, h) => {
-      canvas.width  = w;
-      canvas.height = h;
-    };
-    setSize(sourceCanvas,     500, 380);
-    setSize(dotCanvas,        900, 700);
-    setSize(dotPreviewCanvas, 500, 340);
+    const vw = window.innerWidth;
+    let srcW, srcH, dotW, dotH, prevW, prevH;
+
+    if (vw <= 600) {
+      // Mobile: fit within the screen, leave room for padding
+      srcW  = Math.max(280, vw - 48); srcH  = Math.round(srcW  * 0.75);
+      dotW  = Math.max(280, vw - 48); dotH  = Math.round(dotW  * 0.77);
+      prevW = Math.max(280, vw - 48); prevH = Math.round(prevW * 0.68);
+    } else if (vw <= 1100) {
+      // Tablet / stacked layout
+      srcW  = 580;  srcH  = 440;
+      dotW  = 1000; dotH  = 780;
+      prevW = 580;  prevH = 400;
+    } else {
+      // Desktop
+      srcW  = 500;  srcH  = 380;
+      dotW  = 900;  dotH  = 700;
+      prevW = 500;  prevH = 340;
+    }
+
+    sourceCanvas.width      = srcW;  sourceCanvas.height      = srcH;
+    dotCanvas.width         = dotW;  dotCanvas.height         = dotH;
+    dotPreviewCanvas.width  = prevW; dotPreviewCanvas.height  = prevH;
   }
 
   function drawPlaceholder() {
@@ -1235,8 +1251,29 @@ ${objectNodes}
   });
 
   // ─────────────────────────────────────────────
-  // T. Init
+  // T. Resize handler
   // ─────────────────────────────────────────────
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      initCanvasSizes();
+      if (state.grid) {
+        renderOriginal();
+        renderDotMap();
+      } else {
+        drawPlaceholder();
+      }
+      renderDotPreview();
+    }, 200);
+  });
+
+  // ─────────────────────────────────────────────
+  // U. Init
+  // ─────────────────────────────────────────────
+  // Prevent page scroll while rotating the 3D preview on touch
+  dotPreviewCanvas.style.touchAction = 'none';
+
   initCanvasSizes();
   drawPlaceholder();
   checkGeometry();
