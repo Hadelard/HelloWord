@@ -212,6 +212,15 @@ body {
   align-items: start;
 }
 
+/* ─── Left column: panel + 3D preview stacked ─── */
+.left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: sticky;
+  top: 70px;
+}
+
 /* ─── Controls panel ─── */
 .panel {
   background: var(--apple-card-bg);
@@ -223,8 +232,6 @@ body {
   box-shadow: var(--apple-shadow);
   display: grid;
   gap: 16px;
-  position: sticky;
-  top: 70px;
 }
 
 /* ─── Control groups ─── */
@@ -517,6 +524,7 @@ input[type="file"]:focus, select:focus {
 .canvas-card-body.map-body {
   padding: 10px;
   align-items: flex-start;
+  min-height: 540px;
 }
 
 .canvas-card-body.preview-body {
@@ -529,7 +537,7 @@ input[type="file"]:focus, select:focus {
   padding: 14px;
   min-height: 280px;
   overflow-y: auto;
-  max-height: 380px;
+  max-height: none;
 }
 
 .map-scroll {
@@ -702,7 +710,7 @@ input[type="file"], select, .status, .geo-warning {
 /* ─── Responsive: tablet ─── */
 @media (max-width: 1100px) {
   .layout { grid-template-columns: 1fr; }
-  .panel { position: static; }
+  .left-col { position: static; }
 }
 
 /* ─── Responsive: small tablet / large phone ─── */
@@ -745,7 +753,7 @@ input[type="file"], select, .status, .geo-warning {
   .canvas-card { border-radius: 14px; }
   .canvas-card-head { padding: 10px 14px; font-size: 12px; }
   .canvas-card-body { min-height: 200px; padding: 10px; }
-  .canvas-card-body.palette-body { max-height: 220px; padding: 10px; }
+  .canvas-card-body.palette-body { max-height: 320px; padding: 10px; overflow-y: auto; }
 
   /* Palette swatches */
   .swatch { grid-template-columns: 30px 1fr auto; gap: 8px; padding: 7px 8px; border-radius: 9px; }

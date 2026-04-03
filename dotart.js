@@ -1229,12 +1229,12 @@ ${objectNodes}
       // Tablet / stacked layout
       srcW  = 580;  srcH  = 440;
       dotW  = 1000; dotH  = 780;
-      prevW = 580;  prevH = 400;
+      prevW = 580;  prevH = 380;
     } else {
-      // Desktop
-      srcW  = 500;  srcH  = 380;
-      dotW  = 900;  dotH  = 700;
-      prevW = 500;  prevH = 340;
+      // Desktop: preview lives in 360px left column; dot map spans full right column
+      srcW  = 480;  srcH  = 360;
+      dotW  = 1100; dotH  = 820;
+      prevW = 320;  prevH = 280;
     }
 
     sourceCanvas.width      = srcW;  sourceCanvas.height      = srcH;

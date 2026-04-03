@@ -67,94 +67,105 @@
 
     <div class="layout">
 
-      <!-- ── Controls panel ── -->
-      <aside class="panel">
+      <!-- ── Left column: controls + 3D preview ── -->
+      <div class="left-col">
+        <aside class="panel">
 
-        <div class="control-group">
-          <label for="imageInput" data-i18n="label.image">Image</label>
-          <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" />
-          <span class="hint" data-i18n="hint.image">PNG, JPG or WebP.</span>
-        </div>
-
-        <div class="control-group">
-          <div class="slider-header">
-            <label for="dotDiameterCm" data-i18n="label.dotDiameter">Dot diameter / width</label>
-            <span class="slider-val" id="dotDiameterVal">2.0 cm</span>
-          </div>
-          <input id="dotDiameterCm" type="range" min="1" max="10" step="0.1" value="2" class="slider" />
-        </div>
-
-        <div class="control-group">
-          <div class="slider-header">
-            <label for="dotHeightCm" data-i18n="label.dotHeight">Dot height</label>
-            <span class="slider-val" id="dotHeightVal">2.0 cm</span>
-          </div>
-          <input id="dotHeightCm" type="range" min="1" max="10" step="0.1" value="2" class="slider" />
-        </div>
-
-        <div class="control-group">
-          <div class="slider-header">
-            <label for="colorCount" data-i18n="label.colorCount">Number of colors</label>
-            <span class="slider-val" id="colorCountVal">6 colors</span>
-          </div>
-          <input id="colorCount" type="range" min="2" max="20" step="1" value="6" class="slider" />
-        </div>
-
-        <div class="control-group">
-          <div class="slider-header">
-            <label for="frameWidthCm" data-i18n="label.frameWidth">Frame width</label>
-            <span class="slider-val" id="frameWidthVal">40 cm</span>
-          </div>
-          <input id="frameWidthCm" type="range" min="20" max="200" step="1" value="40" class="slider" />
-          <span class="hint" data-i18n="hint.frame">Height calculated proportionally from the image.</span>
-        </div>
-
-        <div class="control-row">
           <div class="control-group">
-            <label for="shapeFamily" data-i18n="label.dotShape">Dot shape</label>
-            <select id="shapeFamily">
-              <option value="circle">Circular</option>
-              <option value="hex">Hexagonal</option>
-              <option value="square">Square</option>
-              <option value="triangle">Triangular</option>
-            </select>
+            <label for="imageInput" data-i18n="label.image">Image</label>
+            <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" />
+            <span class="hint" data-i18n="hint.image">PNG, JPG or WebP.</span>
           </div>
+
           <div class="control-group">
-            <label for="topStyle" data-i18n="label.topStyle">Top style</label>
-            <select id="topStyle">
-              <option value="flat">Flat</option>
-              <option value="dome">Dome / Oval</option>
-              <option value="spike">Spike</option>
-            </select>
+            <div class="slider-header">
+              <label for="dotDiameterCm" data-i18n="label.dotDiameter">Dot diameter / width</label>
+              <span class="slider-val" id="dotDiameterVal">2.0 cm</span>
+            </div>
+            <input id="dotDiameterCm" type="range" min="1" max="10" step="0.1" value="2" class="slider" />
+          </div>
+
+          <div class="control-group">
+            <div class="slider-header">
+              <label for="dotHeightCm" data-i18n="label.dotHeight">Dot height</label>
+              <span class="slider-val" id="dotHeightVal">2.0 cm</span>
+            </div>
+            <input id="dotHeightCm" type="range" min="1" max="10" step="0.1" value="2" class="slider" />
+          </div>
+
+          <div class="control-group">
+            <div class="slider-header">
+              <label for="colorCount" data-i18n="label.colorCount">Number of colors</label>
+              <span class="slider-val" id="colorCountVal">6 colors</span>
+            </div>
+            <input id="colorCount" type="range" min="2" max="20" step="1" value="6" class="slider" />
+          </div>
+
+          <div class="control-group">
+            <div class="slider-header">
+              <label for="frameWidthCm" data-i18n="label.frameWidth">Frame width</label>
+              <span class="slider-val" id="frameWidthVal">40 cm</span>
+            </div>
+            <input id="frameWidthCm" type="range" min="20" max="200" step="1" value="40" class="slider" />
+            <span class="hint" data-i18n="hint.frame">Height calculated proportionally from the image.</span>
+          </div>
+
+          <div class="control-row">
+            <div class="control-group">
+              <label for="shapeFamily" data-i18n="label.dotShape">Dot shape</label>
+              <select id="shapeFamily">
+                <option value="circle">Circular</option>
+                <option value="hex">Hexagonal</option>
+                <option value="square">Square</option>
+                <option value="triangle">Triangular</option>
+              </select>
+            </div>
+            <div class="control-group">
+              <label for="topStyle" data-i18n="label.topStyle">Top style</label>
+              <select id="topStyle">
+                <option value="flat">Flat</option>
+                <option value="dome">Dome / Oval</option>
+                <option value="spike">Spike</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="geoWarning" class="geo-warning hidden">
+            <strong>Geometry note:</strong>
+            <span id="geoWarningText"></span>
+          </div>
+
+          <div class="btn-stack">
+            <button id="generateBtn" class="btn btn-generate" data-i18n="btn.generate">Generate dot art</button>
+            <button id="downloadMapBtn" class="btn btn-secondary-action" disabled data-i18n="btn.downloadMap">Download manual</button>
+          </div>
+          <div class="btn-stack">
+            <button id="saveProjectBtn" class="btn btn-generate" disabled data-i18n="btn.saveProject">Save full project (.3mf)</button>
+          </div>
+          <div class="btn-stack">
+            <button id="exportStlBtn" class="btn btn-tertiary" disabled data-i18n="btn.exportStl">Export STL (unit dot)</button>
+          </div>
+          <!-- Unit 3MF hidden for now, kept in DOM for JS compatibility -->
+          <div style="display:none"><button id="export3mfBtn" disabled>Export 3MF</button></div>
+
+          <div id="status" class="status">Upload an image to get started.</div>
+        </aside>
+
+        <!-- 3D preview below controls, same width -->
+        <div class="canvas-card">
+          <div class="canvas-card-head" data-i18n="card.preview">3D unit dot preview</div>
+          <div class="canvas-card-body preview-body">
+            <canvas id="dotPreviewCanvas"></canvas>
           </div>
         </div>
-
-        <div id="geoWarning" class="geo-warning hidden">
-          <strong>Geometry note:</strong>
-          <span id="geoWarningText"></span>
-        </div>
-
-        <div class="btn-stack">
-          <button id="generateBtn" class="btn btn-generate" data-i18n="btn.generate">Generate dot art</button>
-          <button id="downloadMapBtn" class="btn btn-secondary-action" disabled data-i18n="btn.downloadMap">Download manual</button>
-        </div>
-        <div class="btn-stack">
-          <button id="saveProjectBtn" class="btn btn-generate" disabled data-i18n="btn.saveProject">Save full project (.3mf)</button>
-        </div>
-        <div class="btn-stack">
-          <button id="exportStlBtn" class="btn btn-tertiary" disabled data-i18n="btn.exportStl">Export STL (unit dot)</button>
-        </div>
-        <!-- Unit 3MF hidden for now, kept in DOM for JS compatibility -->
-        <div style="display:none"><button id="export3mfBtn" disabled>Export 3MF</button></div>
-
-        <div id="status" class="status">Upload an image to get started.</div>
-      </aside>
+      </div>
 
       <!-- ── Main area ── -->
       <main class="main-area">
 
         <div id="stats" class="stats-grid"></div>
 
+        <!-- Row 1: original image + color summary -->
         <div class="canvas-grid">
           <div class="canvas-card">
             <div class="canvas-card-head" data-i18n="card.original">Original image</div>
@@ -163,26 +174,19 @@
             </div>
           </div>
           <div class="canvas-card">
-            <div class="canvas-card-head" data-i18n="card.dotmap">Dot art map</div>
-            <div class="canvas-card-body map-body">
-              <div class="map-scroll">
-                <canvas id="dotCanvas"></canvas>
-              </div>
+            <div class="canvas-card-head" data-i18n="card.colors">Color summary</div>
+            <div class="canvas-card-body palette-body">
+              <div id="paletteList" class="palette-list"></div>
             </div>
           </div>
         </div>
 
-        <div class="canvas-grid">
-          <div class="canvas-card">
-            <div class="canvas-card-head" data-i18n="card.preview">3D unit dot preview</div>
-            <div class="canvas-card-body preview-body">
-              <canvas id="dotPreviewCanvas"></canvas>
-            </div>
-          </div>
-          <div class="canvas-card">
-            <div class="canvas-card-head" data-i18n="card.colors">Color summary</div>
-            <div class="canvas-card-body palette-body">
-              <div id="paletteList" class="palette-list"></div>
+        <!-- Row 2: dot art map full-width -->
+        <div class="canvas-card">
+          <div class="canvas-card-head" data-i18n="card.dotmap">Dot art map</div>
+          <div class="canvas-card-body map-body">
+            <div class="map-scroll">
+              <canvas id="dotCanvas"></canvas>
             </div>
           </div>
         </div>
