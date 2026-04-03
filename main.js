@@ -5,13 +5,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const signupView = document.getElementById('signup-view');
     const forgotView = document.getElementById('forgot-view');
     const welcomeView = document.getElementById('welcome-view');
+    const updatePasswordView = document.getElementById('update-password-view');
     
     const loginForm = document.getElementById('login-form');
     const signupForm = document.getElementById('signup-form');
     const forgotForm = document.getElementById('forgot-form');
+    const updatePasswordForm = document.getElementById('update-password-form');
     
     const goToSignup = document.getElementById('go-to-signup');
     const goToLogin = document.getElementById('go-to-login');
+    const goToLoginFromUpdate = document.getElementById('go-to-login-from-update');
     const goToForgot = document.getElementById('go-to-forgot');
     const goToLoginFromForgot = document.getElementById('go-to-login-from-forgot');
     const logoutBtn = document.getElementById('logout-btn');
@@ -62,6 +65,13 @@ document.addEventListener('DOMContentLoaded', () => {
         showView(loginView);
     });
 
+    if(goToLoginFromUpdate) {
+        goToLoginFromUpdate.addEventListener('click', (e) => {
+            e.preventDefault();
+            showView(loginView);
+        });
+    }
+
     // Simulated Authentication - extended with License checks
     function authenticate(name, email) {
         sessionStorage.setItem('is_logged_in', 'true');
@@ -99,6 +109,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const supabaseUrl = 'https://aureuolcaojbhyoubqyr.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1cmV1b2xjYW9qYmh5b3VicXlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4Mjc4NjEsImV4cCI6MjA5MDQwMzg2MX0.p24CEfzJDHINzE5kpmbFrNJxEW2HnwM8JFaB_SN5ukU';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    // Detect Password Recovery Event
+    supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+            showView(updatePasswordView);
+        }
+    });
+
+    // Update Password Logic
+    if(updatePasswordForm) {
+        updatePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newPass = document.getElementById('update-password-input').value;
+            const btn = document.getElementById('update-submit-btn');
+            
+            btn.disabled = true;
+            btn.textContent = 'Updating...';
+            
+            const { error } = await supabase.auth.updateUser({
+                password: newPass
+            });
+
+            if (error) {
+                alert('Erro ao atualizar a senha: ' + error.message);
+            } else {
+                alert('Senha atualizada com sucesso!');
+                showView(loginView);
+                updatePasswordForm.reset();
+            }
+            
+            btn.disabled = false;
+            btn.textContent = 'Update Password';
+        });
+    }
 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();

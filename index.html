@@ -146,6 +146,31 @@
                 <button type="button" id="logout-btn" class="btn btn-secondary">Sign out</button>
             </div>
         </section>
+        <!-- Update Password Screen -->
+        <section id="update-password-view" class="view">
+            <div class="card">
+                <div class="logo-container">
+                    <div class="dotart-logo-text" style="font-size: 28px;">
+                        <span class="dotart-logo-symbol" style="width: 12px; height: 12px;"></span>
+                        DotArt
+                    </div>
+                </div>
+                <h1>New Password</h1>
+                <p class="subtitle">Enter your new password</p>
+
+                <form id="update-password-form">
+                    <div class="input-group">
+                        <input type="password" id="update-password-input" placeholder="New Password" required minlength="6">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="update-submit-btn">Update Password</button>
+                    <!-- Return to login -->
+                    <div style="text-align: center; margin-top: 16px;">
+                         <a href="#" id="go-to-login-from-update" style="color: var(--apple-secondary-text); font-size: 13px; text-decoration: none;">Back to Sign in</a>
+                    </div>
+                </form>
+            </div>
+        </section>
     </div>
 
     <!-- Supabase JS Client -->
