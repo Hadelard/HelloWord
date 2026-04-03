@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = document.getElementById('logout-btn');
     
     const userNameDisplay = document.getElementById('user-name-display');
-    const googleLoginBtn = document.querySelector('.btn-google');
 
     // Navigation logic
     function showView(viewToShow) {
@@ -69,18 +68,20 @@ document.addEventListener('DOMContentLoaded', () => {
         authenticate(name);
     });
 
-    // Google Login Simulated
-    googleLoginBtn.addEventListener('click', () => {
-        // Simulate a popup/delay
-        googleLoginBtn.textContent = 'Connecting...';
-        googleLoginBtn.disabled = true;
+    // Real Google JWT Callback (must be globally accessible)
+    window.handleCredentialResponse = function(response) {
+        // Decode the JWT Payload sent by Google
+        let base64Url = response.credential.split('.')[1];
+        let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
         
-        setTimeout(() => {
-            authenticate('Google User');
-            googleLoginBtn.textContent = 'Sign in with Google';
-            googleLoginBtn.disabled = false;
-        }, 1500);
-    });
+        let payload = JSON.parse(jsonPayload);
+        
+        // Pass the name to our existing auth flow
+        authenticate(payload.name || payload.given_name || 'Google User');
+    };
 
     // Logout logic
     logoutBtn.addEventListener('click', () => {

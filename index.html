@@ -9,6 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
     <div id="app">
@@ -35,10 +37,21 @@
                         <span>or</span>
                     </div>
 
-                    <button type="button" class="btn btn-google">
-                        <img src="https://img.icons8.com/color/48/000000/google-logo.png" alt="Google">
-                        Sign in with Google
-                    </button>
+                    <!-- Real Google Login -->
+                    <div id="g_id_onload"
+                         data-client_id="266768397375-5mg3ssa1orhppov304fnk35uhtrejo8k.apps.googleusercontent.com"
+                         data-callback="handleCredentialResponse"
+                         data-auto_prompt="false">
+                    </div>
+                    <div class="g_id_signin"
+                         data-type="standard"
+                         data-size="large"
+                         data-theme="outline"
+                         data-text="sign_in_with"
+                         data-shape="rectangular"
+                         data-logo_alignment="left"
+                         style="display: flex; justify-content: center; margin-top: 16px;">
+                    </div>
                 </form>
 
                 <div class="footer-links">
