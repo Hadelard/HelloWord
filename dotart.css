@@ -593,6 +593,19 @@ canvas {
   box-shadow: 0 0 0 3px var(--apple-primary);
 }
 
+.swatch-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 .swatch-color-input {
   position: absolute;
   inset: 0;
@@ -603,6 +616,62 @@ canvas {
   border: none;
   padding: 0;
   border-radius: 8px;
+  z-index: 1;
+}
+
+/* ─── Dot color picker popover ─── */
+#dot-color-picker {
+  position: fixed;
+  z-index: 500;
+  background: var(--apple-card-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--apple-border);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  min-width: 180px;
+  max-width: 260px;
+}
+
+.dcp-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--apple-secondary-text);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+.dcp-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dcp-color {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+  font-variant-numeric: tabular-nums;
+}
+
+.dcp-color:hover {
+  transform: scale(1.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dcp-color--active {
+  border-color: var(--apple-primary);
+  box-shadow: 0 0 0 2px var(--apple-primary);
 }
 
 .swatch-name {
@@ -673,6 +742,15 @@ canvas {
   background: linear-gradient(160deg, #2c2c2e, #1c1c1e);
 }
 [data-theme="dark"] .canvas-card-body.palette-body { background: #1c1c1e; }
+
+/* Dot color picker — dark mode */
+[data-theme="dark"] #dot-color-picker {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Dot map canvas: crosshair cursor when editable */
+#dotCanvas { cursor: default; }
+#dotCanvas.editable { cursor: crosshair; }
 
 /* Secondary & tertiary buttons */
 [data-theme="dark"] .btn-secondary-action {

@@ -1169,22 +1169,32 @@ ${objectNodes}
     `;
   }
 
+  function recomputeCounts() {
+    state.counts = new Array(state.palette.length).fill(0);
+    state.grid.forEach(idx => state.counts[idx]++);
+  }
+
   function updatePalette() {
     if (!state.palette.length) { paletteList.innerHTML = ''; return; }
-    paletteList.innerHTML = state.palette.map((color, i) => `
-      <div class="swatch">
-        <div class="swatch-box" style="background:${rgbToHex(color)}" title="Click to change color">
-          <input type="color" class="swatch-color-input" data-index="${i}" value="${rgbToHex(color)}">
-        </div>
-        <div>
-          <div class="swatch-name">${t('palette.color')} ${i+1}</div>
-          <div class="swatch-hex">${rgbToHex(color)}</div>
-        </div>
-        <div class="swatch-count">
-          <strong>${state.counts[i] || 0}</strong>
-          <span>${t('palette.dots')}</span>
-        </div>
-      </div>`).join('');
+    paletteList.innerHTML = state.palette.map((color, i) => {
+      const hex = rgbToHex(color);
+      const numColor = luminance(color) > 160 ? '#111827' : '#ffffff';
+      return `
+        <div class="swatch">
+          <div class="swatch-box" style="background:${hex}" title="Click to change color">
+            <span class="swatch-num" style="color:${numColor}">${i + 1}</span>
+            <input type="color" class="swatch-color-input" data-index="${i}" value="${hex}">
+          </div>
+          <div>
+            <div class="swatch-name">${t('palette.color')} ${i + 1}</div>
+            <div class="swatch-hex">${hex}</div>
+          </div>
+          <div class="swatch-count">
+            <strong>${state.counts[i] || 0}</strong>
+            <span>${t('palette.dots')}</span>
+          </div>
+        </div>`;
+    }).join('');
 
     paletteList.querySelectorAll('.swatch-color-input').forEach(input => {
       input.addEventListener('input', e => {
@@ -1198,10 +1208,97 @@ ${objectNodes}
         const swatch = e.target.closest('.swatch');
         swatch.querySelector('.swatch-box').style.background = hex;
         swatch.querySelector('.swatch-hex').textContent = hex;
+        swatch.querySelector('.swatch-num').style.color =
+          luminance(state.palette[idx]) > 160 ? '#111827' : '#ffffff';
         renderDotMap();
       });
     });
   }
+
+  // ─────────────────────────────────────────────
+  // O2. Dot color picker (click on map to reassign)
+  // ─────────────────────────────────────────────
+  function closeDotColorPicker() {
+    const p = document.getElementById('dot-color-picker');
+    if (p) p.remove();
+  }
+
+  function showDotColorPicker(clientX, clientY, gridIndex, currentColorIdx) {
+    closeDotColorPicker();
+
+    const picker = document.createElement('div');
+    picker.id = 'dot-color-picker';
+    picker.innerHTML = `
+      <div class="dcp-title">Trocar cor do ponto</div>
+      <div class="dcp-colors">
+        ${state.palette.map((color, i) => {
+          const hex = rgbToHex(color);
+          const numColor = luminance(color) > 160 ? '#111827' : '#ffffff';
+          const active = i === currentColorIdx ? ' dcp-color--active' : '';
+          return `<button class="dcp-color${active}" data-idx="${i}"
+                    style="background:${hex}" title="${t('palette.color')} ${i + 1}">
+                    <span style="color:${numColor}">${i + 1}</span>
+                  </button>`;
+        }).join('')}
+      </div>`;
+
+    document.body.appendChild(picker);
+
+    // Position near click, keep within viewport
+    const pw = picker.offsetWidth  || 220;
+    const ph = picker.offsetHeight || 100;
+    let left = clientX + 14;
+    let top  = clientY - 20;
+    if (left + pw > window.innerWidth  - 8) left = clientX - pw - 14;
+    if (top  + ph > window.innerHeight - 8) top  = window.innerHeight - ph - 8;
+    if (top < 8) top = 8;
+    picker.style.left = left + 'px';
+    picker.style.top  = top  + 'px';
+
+    picker.querySelectorAll('.dcp-color').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const newIdx = Number(btn.dataset.idx);
+        state.grid[gridIndex] = newIdx;
+        recomputeCounts();
+        renderDotMap();
+        updatePalette();
+        closeDotColorPicker();
+      });
+    });
+
+    // Close on outside click (next tick to avoid self-close)
+    setTimeout(() => {
+      document.addEventListener('click', closeDotColorPicker, { once: true });
+    }, 0);
+  }
+
+  dotCanvas.addEventListener('click', e => {
+    if (!state.grid) return;
+
+    const rect   = dotCanvas.getBoundingClientRect();
+    const scaleX = dotCanvas.width  / rect.width;
+    const scaleY = dotCanvas.height / rect.height;
+    const cx     = (e.clientX - rect.left) * scaleX;
+    const cy     = (e.clientY - rect.top)  * scaleY;
+
+    const margin = 18;
+    const cell   = Math.min(
+      (dotCanvas.width  - margin * 2) / state.cols,
+      (dotCanvas.height - margin * 2) / state.rows
+    );
+    const ox = (dotCanvas.width  - cell * state.cols)  / 2;
+    const oy = (dotCanvas.height - cell * state.rows) / 2;
+
+    const col = Math.floor((cx - ox) / cell);
+    const row = Math.floor((cy - oy) / cell);
+
+    if (col < 0 || col >= state.cols || row < 0 || row >= state.rows) return;
+
+    const gridIndex     = row * state.cols + col;
+    const currentColor  = state.grid[gridIndex];
+    showDotColorPicker(e.clientX, e.clientY, gridIndex, currentColor);
+  });
 
   // ─────────────────────────────────────────────
   // P. Download helper
@@ -1308,6 +1405,8 @@ ${objectNodes}
     renderDotPreview();
     updatePalette();
     updateStats();
+
+    dotCanvas.classList.add('editable');
 
     setStatus(tFmt('status.done', { cols: state.cols, rows: state.rows, colors: state.palette.length }));
 
