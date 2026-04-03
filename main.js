@@ -95,15 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Hash generator using native modern HTML5 features
-    async function hashPassword(password) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        return hashHex;
-    }
+    // Supabase Initialization
+    const supabaseUrl = 'https://aureuolcaojbhyoubqyr.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF1cmV1b2xjYW9qYmh5b3VicXlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4Mjc4NjEsImV4cCI6MjA5MDQwMzg2MX0.p24CEfzJDHINzE5kpmbFrNJxEW2HnwM8JFaB_SN5ukU';
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -117,51 +112,18 @@ document.addEventListener('DOMContentLoaded', () => {
         errObj.style.display = 'none';
 
         try {
-            const hashAttempt = await hashPassword(pass);
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: pass
+            });
             
-            // 1. Check LocalStorage (Frontend local created accounts)
-            const localObj = localStorage.getItem('dotart_account_' + email);
-            if(localObj) {
-                const account = JSON.parse(localObj);
-                if(account.hash === hashAttempt) {
-                    authenticate(account.name, email);
-                    btn.disabled = false;
-                    btn.textContent = 'Continue';
-                    return;
-                }
-            }
-
-            // 2. Check Global Users CSV manually added by Admin
-            let authorized = false;
-            let authName = '';
-            
-            try {
-                const response = await fetch('users.csv');
-                if(response.ok) {
-                    const rawCsv = await response.text();
-                    const lines = rawCsv.split('\n');
-                    
-                    for(let i = 1; i < lines.length; i++) {
-                        const row = lines[i].split(',');
-                        if(row.length >= 3) {
-                            if(row[0].trim().toLowerCase() === email.toLowerCase() && row[2].trim() === hashAttempt) {
-                                authorized = true;
-                                authName = row[1].trim();
-                                break;
-                            }
-                        }
-                    }
-                }
-            } catch (fetchErr) {
-                // Ignore fetch errors (like running locally via file://) so it gracefully falls to the 'Invalid' message
-                console.warn("Global users.csv check skipped:", fetchErr);
-            }
-            
-            if(authorized) {
-                authenticate(authName, email);
-            } else {
+            if (error) {
                 errObj.textContent = 'E-mail ou senha incorretos.';
                 errObj.style.display = 'block';
+            } else if (data.user) {
+                // Obter nome dos metadados se existir, ou do inicio do e-mail
+                const authName = data.user.user_metadata?.name || email.split('@')[0];
+                authenticate(authName, email);
             }
             
         } catch(ex) {
@@ -184,32 +146,59 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.disabled = true;
         btn.textContent = 'Creating...';
         
-        const hashed = await hashPassword(pass);
-        
-        // Save account uniquely locally (No database access on static Vercel envs)
-        localStorage.setItem('dotart_account_' + email, JSON.stringify({
-            name: name,
-            hash: hashed
-        }));
-        
-        authenticate(name, email);
+        try {
+            const { data, error } = await supabase.auth.signUp({
+                email: email,
+                password: pass,
+                options: {
+                    data: {
+                        name: name
+                    }
+                }
+            });
+
+            if (error) {
+                alert('Erro ao criar conta: ' + error.message);
+            } else {
+                authenticate(name, email);
+            }
+        } catch (ex) {
+            console.error("General Signup Error:", ex);
+            alert('Não foi possível realizar o cadastro. Tente novamente.');
+        }
         
         btn.disabled = false;
         btn.textContent = 'Create Account';
     });
 
-    forgotForm.addEventListener('submit', (e) => {
+    forgotForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('forgot-email').value;
+        const btn = document.getElementById('forgot-submit-btn');
         const msg = document.getElementById('forgot-msg');
         
-        msg.style.display = 'block';
-        msg.style.color = '#34c759';
-        msg.textContent = 'Instruções de redefinição foram simuladas para seu Aplicativo de E-mail para contas manuais.';
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
         
-        setTimeout(() => {
-            window.location.href = `mailto:${email}?subject=Reset DotArt Password&body=Your request to reset the manual static password was registered. Contact Admin for new temporary hash.`;
-        }, 1500);
+        try {
+            const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin,
+            });
+
+            msg.style.display = 'block';
+            if (error) {
+                msg.style.color = '#ff453a';
+                msg.textContent = 'Erro ao enviar o e-mail: ' + error.message;
+            } else {
+                msg.style.color = '#34c759';
+                msg.textContent = 'Se este e-mail estiver cadastrado, você receberá um link de instrução.';
+            }
+        } catch (ex) {
+            console.error(ex);
+        }
+        
+        btn.disabled = false;
+        btn.textContent = 'Send Reset Link';
     });
 
     // Real Google JWT Callback (must be globally accessible)
