@@ -34,7 +34,12 @@
                         <input type="password" id="login-password" placeholder="Password" required>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary">Continue</button>
+                    <div id="login-error-msg" style="color: #ff453a; font-size: 13px; margin-bottom: 12px; display: none;">Invalid email or password</div>
+                    <button type="submit" class="btn btn-primary" id="login-submit-btn">Continue</button>
+                    
+                    <div style="text-align: right; margin-top: 8px;">
+                        <a href="#" id="go-to-forgot" style="color: var(--apple-secondary-text); font-size: 13px; text-decoration: none;">Forgot password?</a>
+                    </div>
                     
                     <div class="divider">
                         <span>or</span>
@@ -95,12 +100,49 @@
             </div>
         </section>
 
+        <!-- Forgot Password Screen -->
+        <section id="forgot-view" class="view">
+            <div class="card">
+                <div class="logo-container">
+                    <div class="dotart-logo-text" style="font-size: 28px;">
+                        <span class="dotart-logo-symbol" style="width: 12px; height: 12px;"></span>
+                        DotArt
+                    </div>
+                </div>
+                <h1>Reset Password</h1>
+                <p class="subtitle">Enter your email to receive instructions</p>
+
+                <form id="forgot-form">
+                    <div class="input-group">
+                        <input type="email" id="forgot-email" placeholder="Email" required>
+                    </div>
+                    
+                    <div id="forgot-msg" style="font-size: 13px; margin-bottom: 12px; display: none;"></div>
+                    <button type="submit" class="btn btn-primary" id="forgot-submit-btn">Send Reset Link</button>
+                </form>
+
+                <div class="footer-links">
+                    <p>Remembered your password? <a href="#" id="go-to-login-from-forgot">Sign in</a></p>
+                </div>
+            </div>
+        </section>
+
         <!-- Welcome Screen -->
         <section id="welcome-view" class="view">
             <div class="welcome-container">
                 <h1 class="welcome-text">Hello, <span id="user-name-display">User</span></h1>
                 <p class="welcome-subtext">Welcome back to your elegant dashboard.</p>
-                <a href="dotart.html" class="btn btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;margin-top:8px;">Open DotArt Maker →</a>
+                <div id="license-key-section" style="display: none; margin-bottom: 24px; text-align: left; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05);">
+                    <p style="color: var(--apple-secondary-text); font-size: 14px; margin-bottom: 12px; font-weight: 500;">Access Restricted</p>
+                    <p style="font-size: 16px; margin-bottom: 16px;">Please enter your DotArt Access Key to unlock the system.</p>
+                    <div class="input-group">
+                        <input type="text" id="license-key-input" placeholder="XXX-XXX-XXX" maxlength="11" style="text-align: center; letter-spacing: 2px; font-family: monospace; font-size: 18px;">
+                    </div>
+                    <button type="button" id="verify-key-btn" class="btn btn-primary" style="margin-top: 16px;">Verify Key</button>
+                    <p id="key-error-msg" style="color: #ff453a; font-size: 13px; margin-top: 12px; display: none; text-align: center;"></p>
+                </div>
+
+                <a href="dotart.html" id="open-dotart-btn" class="btn btn-primary" style="text-decoration:none;display:none;align-items:center;justify-content:center;margin-top:8px;">Open DotArt Maker →</a>
                 <button type="button" id="logout-btn" class="btn btn-secondary">Sign out</button>
             </div>
         </section>
