@@ -72,34 +72,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Simulated Authentication - extended with License checks
-    function authenticate(name, email) {
+    // Authentication + License check via Supabase
+    async function authenticate(name, email) {
         sessionStorage.setItem('is_logged_in', 'true');
         currentAuthEmail = email || null;
         userNameDisplay.textContent = name;
         showView(welcomeView);
-        
-        // Add a nice animation effect to the welcome text
+
         userNameDisplay.style.opacity = '0';
         setTimeout(() => {
             userNameDisplay.style.transition = 'opacity 1s ease';
             userNameDisplay.style.opacity = '1';
         }, 500);
 
-        // Security / License Logic
         if (email) {
-            const hasAccess = localStorage.getItem('dotart_access_' + email);
-            if (hasAccess === 'true') {
+            // Consulta Supabase: chave já resgatada e dentro da validade?
+            const { data } = await supabase
+                .from('dotart_access')
+                .select('redeemed, expires_at')
+                .eq('email', email.toLowerCase())
+                .eq('redeemed', true)
+                .gt('expires_at', new Date().toISOString())
+                .maybeSingle();
+
+            if (data) {
+                // Acesso já liberado — pula etapa da chave
                 licenseKeySection.style.display = 'none';
                 openDotartBtn.style.display = 'inline-flex';
             } else {
+                // Precisa inserir a chave
                 licenseKeySection.style.display = 'block';
                 openDotartBtn.style.display = 'none';
                 licenseKeyInput.value = '';
                 keyErrorMsg.style.display = 'none';
             }
         } else {
-            // Unauthenticated/dummy fallback
             licenseKeySection.style.display = 'none';
             openDotartBtn.style.display = 'inline-flex';
         }
@@ -273,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.value = val;
     });
 
-    // CSV Validation
+    // Supabase Key Validation
     verifyKeyBtn.addEventListener('click', async () => {
         const key = licenseKeyInput.value.trim();
         verifyKeyBtn.textContent = 'Verifying...';
@@ -281,39 +288,39 @@ document.addEventListener('DOMContentLoaded', () => {
         keyErrorMsg.style.display = 'none';
 
         try {
-            // Read CSV locally/from static host
-            const response = await fetch('access.csv');
-            if(!response.ok) throw new Error('CSV File not found');
-            const csvText = await response.text();
-            
-            const rows = csvText.split('\n');
-            let authorized = false;
+            const now = new Date().toISOString();
 
-            for(let i = 1; i < rows.length; i++) {
-                const parts = rows[i].trim().split(',');
-                if(parts.length >= 2) {
-                    const rowEmail = parts[0].trim();
-                    const rowKey = parts[1].trim();
-                    
-                    if(rowEmail.toLowerCase() === currentAuthEmail.toLowerCase() && rowKey === key) {
-                        authorized = true;
-                        break;
-                    }
-                }
-            }
+            // Busca o registro pelo email + chave + dentro da validade
+            const { data, error } = await supabase
+                .from('dotart_access')
+                .select('id, redeemed, expires_at')
+                .eq('email', currentAuthEmail.toLowerCase())
+                .eq('key', key)
+                .gt('expires_at', now)
+                .maybeSingle();
 
-            if(authorized) {
-                // Save approval to localStorage
-                localStorage.setItem('dotart_access_' + currentAuthEmail, 'true');
-                licenseKeySection.style.display = 'none';
-                openDotartBtn.style.display = 'inline-flex';
-            } else {
-                keyErrorMsg.textContent = 'Invalid key for this account. Try again.';
+            if (error) throw error;
+
+            if (!data) {
+                keyErrorMsg.textContent = 'Chave inválida ou acesso expirado. Tente novamente.';
                 keyErrorMsg.style.display = 'block';
+                return;
             }
+
+            // Primeira ativação: marca como redeemed
+            if (!data.redeemed) {
+                await supabase
+                    .from('dotart_access')
+                    .update({ redeemed: true, redeemed_at: now })
+                    .eq('id', data.id);
+            }
+
+            licenseKeySection.style.display = 'none';
+            openDotartBtn.style.display = 'inline-flex';
+
         } catch (err) {
-            console.error('Error validating CSV:', err);
-            keyErrorMsg.textContent = 'Error checking access database.';
+            console.error('Error validating access:', err);
+            keyErrorMsg.textContent = 'Erro ao verificar o banco de acesso.';
             keyErrorMsg.style.display = 'block';
         } finally {
             verifyKeyBtn.textContent = 'Verify Key';
