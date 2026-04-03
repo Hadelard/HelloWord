@@ -19,14 +19,19 @@ CREATE TABLE IF NOT EXISTS dotart_access (
 
 ALTER TABLE dotart_access ENABLE ROW LEVEL SECURITY;
 
--- Anon pode ler (para verificar chave e status redeemed)
-CREATE POLICY "anon_select_access" ON dotart_access
-  FOR SELECT TO anon USING (true);
+-- IMPORTANTE (Histórico de Bug de RLS):
+-- Originalmente, essas políticas usavam o filtro "TO anon".
+-- O erro era: ao fazer login com o Supabase Auth, o perfil do usuário muda de "anon" para "authenticated". 
+-- Isso impedia que a busca pelas chaves funcionasse para quem estivesse logado.
+-- A correção foi usar as diretrizes públicas/universais, removendo a trava do `anon`.
 
--- Anon pode atualizar apenas para marcar como redeemed
-CREATE POLICY "anon_redeem_access" ON dotart_access
-  FOR UPDATE TO anon
-  USING (true)
+-- Todos (anon e authenticated) podem ler para verificar chave e status redeemed
+CREATE POLICY "public_select_access" ON dotart_access
+  FOR SELECT USING (true);
+
+-- Todos (anon e authenticated) podem atualizar apenas para marcar como redeemed
+CREATE POLICY "public_redeem_access" ON dotart_access
+  FOR UPDATE USING (true)
   WITH CHECK (redeemed = true);
 
 -- ============================================================
