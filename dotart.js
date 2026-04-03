@@ -1173,7 +1173,9 @@ ${objectNodes}
     if (!state.palette.length) { paletteList.innerHTML = ''; return; }
     paletteList.innerHTML = state.palette.map((color, i) => `
       <div class="swatch">
-        <div class="swatch-box" style="background:${rgbToHex(color)}"></div>
+        <div class="swatch-box" style="background:${rgbToHex(color)}" title="Click to change color">
+          <input type="color" class="swatch-color-input" data-index="${i}" value="${rgbToHex(color)}">
+        </div>
         <div>
           <div class="swatch-name">${t('palette.color')} ${i+1}</div>
           <div class="swatch-hex">${rgbToHex(color)}</div>
@@ -1183,6 +1185,22 @@ ${objectNodes}
           <span>${t('palette.dots')}</span>
         </div>
       </div>`).join('');
+
+    paletteList.querySelectorAll('.swatch-color-input').forEach(input => {
+      input.addEventListener('input', e => {
+        const idx = Number(e.target.dataset.index);
+        const hex = e.target.value;
+        state.palette[idx] = [
+          parseInt(hex.slice(1, 3), 16),
+          parseInt(hex.slice(3, 5), 16),
+          parseInt(hex.slice(5, 7), 16),
+        ];
+        const swatch = e.target.closest('.swatch');
+        swatch.querySelector('.swatch-box').style.background = hex;
+        swatch.querySelector('.swatch-hex').textContent = hex;
+        renderDotMap();
+      });
+    });
   }
 
   // ─────────────────────────────────────────────
