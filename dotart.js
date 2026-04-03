@@ -1218,9 +1218,15 @@ ${objectNodes}
   // ─────────────────────────────────────────────
   // O2. Dot color picker (click on map to reassign)
   // ─────────────────────────────────────────────
+  let _dcpOutsideHandler = null;
+
   function closeDotColorPicker() {
     const p = document.getElementById('dot-color-picker');
     if (p) p.remove();
+    if (_dcpOutsideHandler) {
+      document.removeEventListener('click', _dcpOutsideHandler);
+      _dcpOutsideHandler = null;
+    }
   }
 
   function showDotColorPicker(clientX, clientY, gridIndex, currentColorIdx) {
@@ -1267,14 +1273,17 @@ ${objectNodes}
       });
     });
 
-    // Close on outside click (next tick to avoid self-close)
+    // Fechar ao clicar fora — registra e rastreia o handler para poder removê-lo
     setTimeout(() => {
-      document.addEventListener('click', closeDotColorPicker, { once: true });
+      _dcpOutsideHandler = () => closeDotColorPicker();
+      document.addEventListener('click', _dcpOutsideHandler, { once: true });
     }, 0);
   }
 
   dotCanvas.addEventListener('click', e => {
     if (!state.grid) return;
+    // Impede que o clique no canvas dispare o handler de "fora" do picker
+    e.stopPropagation();
 
     const rect   = dotCanvas.getBoundingClientRect();
     const scaleX = dotCanvas.width  / rect.width;
