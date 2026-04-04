@@ -443,6 +443,19 @@ input[type="file"]:focus, select:focus {
 }
 .btn-baseframe:disabled { opacity: 0.45; }
 
+.btn-fullpack {
+  background: linear-gradient(135deg, #5856d6, #3634a3);
+  color: #fff;
+  border: none;
+  letter-spacing: 0.1px;
+}
+.btn-fullpack:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6e6cd8, #4240b8);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(88, 86, 214, 0.35);
+}
+.btn-fullpack:disabled { opacity: 0.45; }
+
 .btn-tertiary {
   background: transparent;
   border: none;

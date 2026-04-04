@@ -1833,7 +1833,7 @@ ${objectNodes}
 
     setStatus(tFmt('status.done', { cols: state.cols, rows: state.rows, colors: state.palette.length }));
 
-    [downloadMapBtn, exportStlBtn, export3mfBtn, saveProjectBtn, exportBaseframeBtn, open3dPreviewBtn].forEach(b => b.disabled = false);
+    [downloadMapBtn, exportStlBtn, export3mfBtn, saveProjectBtn, exportBaseframeBtn, open3dPreviewBtn, exportStencilPdfBtn, downloadFullPackBtn].forEach(b => b.disabled = false);
     generateBtn.disabled = false;
   }
 
@@ -2172,6 +2172,442 @@ ${objectNodes}
   }
 
   open3dPreviewBtn.addEventListener('click', open3DProjectPreview);
+
+  // ─────────────────────────────────────────────
+  // W. Stencil PDF export (1:1 scale, A4 tiled)
+  // ─────────────────────────────────────────────
+
+  const exportStencilPdfBtn = el('exportStencilPdfBtn');
+
+  function buildStencilPDF(returnBlob = false) {
+    if (!state.grid || !state.palette.length)
+      throw new Error('Generate the project first.');
+    if (!window.jspdf)
+      throw new Error('PDF library not loaded. Check your internet connection.');
+
+    const { jsPDF } = window.jspdf;
+
+    const diameterMm = mm(clamp(Number(controls.dotDiameterCm.value), 1, 10));
+    const cellMm     = diameterMm;                   // cell pitch = dot diameter
+    const stencilR   = diameterMm * 0.42;            // opening radius (same as baseframe clearance)
+    const shape      = controls.shapeFamily.value;
+
+    const frameTotalW = state.cols * cellMm;
+    const frameTotalH = state.rows * cellMm;
+
+    // A4 page layout
+    const PAGE_W  = 210, PAGE_H = 297;
+    const MARGIN  = 12;                              // mm page margin
+    const USABLE_W = PAGE_W - MARGIN * 2;            // 186mm
+    const USABLE_H = PAGE_H - MARGIN * 2;            // 273mm
+    const OVERLAP  = 8;                              // mm repeated content between pages
+    const STEP_W   = USABLE_W - OVERLAP;             // 178mm per step
+    const STEP_H   = USABLE_H - OVERLAP;             // 265mm per step
+
+    const tilesX = Math.max(1, Math.ceil(frameTotalW / STEP_W));
+    const tilesY = Math.max(1, Math.ceil(frameTotalH / STEP_H));
+    const totalStencilPages = tilesX * tilesY;
+
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+    // ── Helper: draw a crosshair registration mark ──
+    function drawRegMark(x, y, size) {
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.2);
+      doc.setLineDashPattern([], 0);
+      doc.line(x - size, y, x + size, y);
+      doc.line(x, y - size, x, y + size);
+      doc.circle(x, y, size * 0.5, 'S');
+    }
+
+    // ── Helper: draw one dot opening (dashed) ──
+    function drawStencilDot(cx, cy, r, rgb) {
+      doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+      doc.setLineWidth(0.35);
+      doc.setLineDashPattern([1.2, 1.0], 0);
+
+      if (shape === 'circle') {
+        doc.circle(cx, cy, r, 'S');
+      } else {
+        let pts;
+        if (shape === 'square') {
+          pts = [[-r,-r],[r,-r],[r,r],[-r,r]];
+        } else if (shape === 'triangle') {
+          pts = [[0,-r],[-r*0.92,r*0.8],[r*0.92,r*0.8]];
+        } else { // hex
+          pts = [];
+          for (let i = 0; i < 6; i++) {
+            const a = Math.PI / 6 + i * Math.PI / 3;
+            pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+          }
+        }
+        const segs = pts.map((p, i) => {
+          const n = pts[(i + 1) % pts.length];
+          return [n[0] - p[0], n[1] - p[1]];
+        });
+        doc.lines(segs, cx + pts[0][0], cy + pts[0][1], [1, 1], 'S', true);
+      }
+    }
+
+    // ── Helper: center mark (tiny cross) ──
+    function drawCenterMark(cx, cy) {
+      const s = 0.6;
+      doc.setDrawColor(160, 160, 160);
+      doc.setLineWidth(0.15);
+      doc.setLineDashPattern([], 0);
+      doc.line(cx - s, cy, cx + s, cy);
+      doc.line(cx, cy - s, cx, cy + s);
+    }
+
+    // ── Page 1: Instructions ──
+    const frameWcm = round(state.frameWidthCm, 1);
+    const frameHcm = round(state.frameHeightCm, 1);
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
+
+    // Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(29, 29, 31);
+    doc.text('DotArt — Stencil Template', MARGIN, MARGIN + 10);
+
+    // Project info box
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.3);
+    doc.setLineDashPattern([], 0);
+    doc.roundedRect(MARGIN, MARGIN + 16, USABLE_W, 28, 3, 3, 'FD');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Frame size: ${frameWcm} × ${frameHcm} cm  |  Grid: ${state.cols} × ${state.rows} dots  |  Colors: ${state.palette.length}  |  Dot shape: ${shape}  |  Dot diameter: ${round(diameterMm/10,1)} cm`, MARGIN + 4, MARGIN + 26);
+    doc.text(`Stencil pages: ${totalStencilPages} (${tilesX} column${tilesX>1?'s':''} × ${tilesY} row${tilesY>1?'s':''})  |  Page format: A4 (210×297 mm)  |  Print scale: 100% — DO NOT SCALE`, MARGIN + 4, MARGIN + 34);
+
+    // ⚠ Warning box
+    doc.setFillColor(255, 243, 205);
+    doc.setDrawColor(255, 193, 7);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(MARGIN, MARGIN + 50, USABLE_W, 16, 2, 2, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(130, 80, 0);
+    doc.text('⚠  IMPORTANT: Print this document at ACTUAL SIZE — 100% scale. Select "Actual size" or uncheck "Fit to page" in your print dialog.', MARGIN + 4, MARGIN + 60);
+
+    // Scale verification bar
+    const barY = MARGIN + 76;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(50, 50, 50);
+    doc.text('Scale verification — this bar must measure exactly 100 mm when printed:', MARGIN, barY);
+    doc.setDrawColor(30, 30, 30);
+    doc.setLineWidth(0.4);
+    doc.setLineDashPattern([], 0);
+    doc.rect(MARGIN, barY + 3, 100, 5, 'S');
+    // Tick marks every 10mm
+    for (let t = 0; t <= 100; t += 10) {
+      const h = t % 50 === 0 ? 5 : (t % 10 === 0 ? 3.5 : 2);
+      doc.line(MARGIN + t, barY + 3, MARGIN + t, barY + 3 + h);
+      if (t % 10 === 0 && t > 0) {
+        doc.setFontSize(6);
+        doc.text(`${t}`, MARGIN + t - 1.5, barY + 11);
+      }
+    }
+    doc.setFontSize(7);
+    doc.text('mm', MARGIN + 103, barY + 8);
+
+    // Instructions
+    const instrY = barY + 18;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(29, 29, 31);
+    doc.text('How to use this stencil', MARGIN, instrY);
+
+    const steps = [
+      ['Print', `Print pages 2–${totalStencilPages + 1} at 100% scale (Actual Size). Verify the scale bar above measures exactly 100 mm.`],
+      ['Assemble', `Cut page borders and align adjacent pages using the registration marks (crosshairs) and page codes (A1, B1…). The ${OVERLAP} mm overlap zone helps alignment. Tape pages together from the back.`],
+      ['Position', 'Place the assembled template on your wall, canvas or surface. Use a level to align it straight. Tape it securely on all edges.'],
+      ['Mark dots', 'Each dashed shape shows where a dot goes. The number inside is the color index. Use a light pencil to mark the center cross if needed.'],
+      ['Place dots', 'Apply glue inside each opening and place the corresponding dot (color number matches the legend below). Work row by row.'],
+      ['Remove', 'Carefully peel the template off once all dots are placed. Pull at a shallow angle to avoid displacing freshly glued dots.'],
+    ];
+
+    doc.setLineWidth(0.3);
+    steps.forEach(([title, text], i) => {
+      const sy = instrY + 8 + i * 16;
+      doc.setFillColor(0, 113, 227);
+      doc.circle(MARGIN + 3, sy + 0.5, 3, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text(String(i + 1), MARGIN + 3 - 0.8, sy + 1);
+      doc.setTextColor(29, 29, 31);
+      doc.text(title, MARGIN + 9, sy + 1);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(80, 80, 80);
+      const lines = doc.splitTextToSize(text, USABLE_W - 14);
+      doc.text(lines, MARGIN + 36, sy + 1);
+    });
+
+    // Color legend
+    const legendY = instrY + 8 + steps.length * 16 + 6;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(29, 29, 31);
+    doc.text('Color legend', MARGIN, legendY);
+
+    const SWATCH = 7, GAP = 3;
+    const perRow = Math.floor(USABLE_W / (SWATCH + GAP + 28));
+    state.palette.forEach((rgb, i) => {
+      const col = i % perRow;
+      const row = Math.floor(i / perRow);
+      const lx  = MARGIN + col * ((SWATCH + GAP + 28));
+      const ly  = legendY + 5 + row * (SWATCH + 3);
+      doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineWidth(0.2);
+      doc.setLineDashPattern([], 0);
+      doc.rect(lx, ly, SWATCH, SWATCH, 'FD');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(40, 40, 40);
+      doc.text(`${i + 1}  ${rgbToHex(rgb)}  (${state.counts[i] || 0} dots)`, lx + SWATCH + 2, ly + SWATCH - 1.5);
+    });
+
+    // Page footer
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7);
+    doc.setTextColor(160, 160, 160);
+    doc.text('Generated by DotArt Maker 3D — dotart.app', MARGIN, PAGE_H - 6);
+    doc.text('Page 1 of ' + (totalStencilPages + 1), PAGE_W - MARGIN - 22, PAGE_H - 6);
+
+    // ── Stencil pages ──
+    const fontSizePt = Math.max(5, Math.min(9, diameterMm * 0.48));
+
+    for (let ty = 0; ty < tilesY; ty++) {
+      for (let tx = 0; tx < tilesX; tx++) {
+        doc.addPage();
+
+        const pageNum    = ty * tilesX + tx + 2;
+        const rowLetter  = String.fromCharCode(65 + ty);
+        const pageCode   = `${rowLetter}${tx + 1}`;
+
+        // Frame area covered by this tile
+        const frameX0 = tx * STEP_W;
+        const frameY0 = ty * STEP_H;
+        const frameX1 = frameX0 + USABLE_W;
+        const frameY1 = frameY0 + USABLE_H;
+
+        // White background
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
+
+        // Usable area outline (very light)
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.15);
+        doc.setLineDashPattern([2, 2], 0);
+        doc.rect(MARGIN, MARGIN, USABLE_W, USABLE_H, 'S');
+        doc.setLineDashPattern([], 0);
+
+        // Registration marks at corners
+        const rm = 4;
+        drawRegMark(MARGIN, MARGIN, rm);
+        drawRegMark(MARGIN + USABLE_W, MARGIN, rm);
+        drawRegMark(MARGIN, MARGIN + USABLE_H, rm);
+        drawRegMark(MARGIN + USABLE_W, MARGIN + USABLE_H, rm);
+
+        // Overlap zone markers (right and bottom edges — show the repeated area)
+        if (tx < tilesX - 1) {
+          doc.setDrawColor(180, 200, 240);
+          doc.setLineWidth(0.2);
+          doc.setLineDashPattern([1.5, 1.5], 0);
+          doc.line(MARGIN + USABLE_W - OVERLAP, MARGIN, MARGIN + USABLE_W - OVERLAP, MARGIN + USABLE_H);
+          doc.setLineDashPattern([], 0);
+        }
+        if (ty < tilesY - 1) {
+          doc.setDrawColor(180, 200, 240);
+          doc.setLineWidth(0.2);
+          doc.setLineDashPattern([1.5, 1.5], 0);
+          doc.line(MARGIN, MARGIN + USABLE_H - OVERLAP, MARGIN + USABLE_W, MARGIN + USABLE_H - OVERLAP);
+          doc.setLineDashPattern([], 0);
+        }
+
+        // Draw dots
+        for (let row = 0; row < state.rows; row++) {
+          for (let col = 0; col < state.cols; col++) {
+            const dotFX = col * cellMm + cellMm / 2;  // frame space X
+            const dotFY = row * cellMm + cellMm / 2;  // frame space Y
+
+            if (dotFX < frameX0 - stencilR || dotFX > frameX1 + stencilR) continue;
+            if (dotFY < frameY0 - stencilR || dotFY > frameY1 + stencilR) continue;
+
+            const px = MARGIN + (dotFX - frameX0);  // page X
+            const py = MARGIN + (dotFY - frameY0);  // page Y
+
+            // Skip if center is outside usable area
+            if (px < MARGIN - stencilR || px > MARGIN + USABLE_W + stencilR) continue;
+            if (py < MARGIN - stencilR || py > MARGIN + USABLE_H + stencilR) continue;
+
+            const colorIdx = state.grid[row * state.cols + col];
+            const rgb = state.palette[colorIdx];
+
+            drawStencilDot(px, py, stencilR, rgb);
+            drawCenterMark(px, py);
+
+            // Color number label
+            if (stencilR > 3) {
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(fontSizePt);
+              doc.setTextColor(
+                luminance(rgb) > 140 ? 40 : 220,
+                luminance(rgb) > 140 ? 40 : 220,
+                luminance(rgb) > 140 ? 40 : 220
+              );
+              doc.setLineDashPattern([], 0);
+              doc.text(String(colorIdx + 1), px, py + fontSizePt * 0.18, { align: 'center', baseline: 'middle' });
+            }
+          }
+        }
+
+        // Header strip
+        doc.setFillColor(245, 245, 247);
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.2);
+        doc.setLineDashPattern([], 0);
+        doc.roundedRect(MARGIN, 2, USABLE_W, 8, 1, 1, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(29, 29, 31);
+        doc.text(`DOTART STENCIL  —  Section ${pageCode}`, MARGIN + 3, 7);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 100, 100);
+        doc.text(
+          `Frame area: X ${round(frameX0/10,1)}–${round(Math.min(frameX1,frameTotalW)/10,1)} cm  |  Y ${round(frameY0/10,1)}–${round(Math.min(frameY1,frameTotalH)/10,1)} cm  |  PRINT AT 100% — DO NOT SCALE`,
+          MARGIN + USABLE_W * 0.32, 7
+        );
+        doc.text(`Page ${pageNum} / ${totalStencilPages + 1}`, MARGIN + USABLE_W - 22, 7);
+
+        // Footer with page code large (for physical assembly reference)
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(220, 220, 220);
+        doc.text(pageCode, MARGIN + 2, PAGE_H - 3);
+      }
+    }
+
+    const filename = `dotart_stencil_${frameWcm}x${frameHcm}cm.pdf`;
+    if (returnBlob) return { blob: doc.output('blob'), filename };
+    doc.save(filename);
+  }
+
+  exportStencilPdfBtn.addEventListener('click', () => {
+    try {
+      exportStencilPdfBtn.disabled = true;
+      exportStencilPdfBtn.textContent = '📄 Generating PDF…';
+      setTimeout(() => {
+        try {
+          buildStencilPDF();
+        } catch (err) {
+          setStatus('Stencil PDF error: ' + (err.message || err));
+        } finally {
+          exportStencilPdfBtn.disabled = false;
+          exportStencilPdfBtn.textContent = '📄 Export Stencil PDF (1:1)';
+        }
+      }, 20);
+    } catch (err) {
+      setStatus('Stencil PDF error: ' + (err.message || err));
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  // V. Full Pack (ZIP of all exports)
+  // ─────────────────────────────────────────────
+  const downloadFullPackBtn = el('downloadFullPackBtn');
+
+  async function buildFullPack() {
+    if (!state.grid || !state.palette.length)
+      throw new Error('Generate the project first.');
+
+    const shape  = controls.shapeFamily.value;
+    const topSt  = controls.topStyle.value;
+    const dotDia = round(Number(controls.dotDiameterCm.value), 1);
+
+    const packFiles = [];
+
+    // 1. Production manual (HTML)
+    const htmlStr = buildProductionHTML();
+    packFiles.push({ name: 'dotart_manual.html', data: enc.encode(htmlStr) });
+
+    // 2. Full project 3MF
+    const projResult = buildFullProject3MF();
+    packFiles.push({ name: 'dotart_full_project.3mf',
+      data: new Uint8Array(await projResult.blob.arrayBuffer()) });
+
+    // 3. Baseframe 3MF
+    const baseBlob = buildBaseframe3MF();
+    packFiles.push({ name: `dotart_baseframe_${shape}_${dotDia}cm.3mf`,
+      data: new Uint8Array(await baseBlob.arrayBuffer()) });
+
+    // 4. STL unit dot (ASCII string → bytes)
+    const stlStr = meshToSTL(`dot_${shape}_${topSt}`, buildDotMesh());
+    packFiles.push({ name: `dot_${shape}_${topSt}.stl`, data: enc.encode(stlStr) });
+
+    // 5. Stencil PDF
+    const pdfResult = buildStencilPDF(true);
+    packFiles.push({ name: pdfResult.filename,
+      data: new Uint8Array(await pdfResult.blob.arrayBuffer()) });
+
+    // Build ZIP using the same helpers as zipStore
+    const localParts = [], centralParts = [];
+    let offset = 0;
+    const dt = dosDateTime();
+    for (const file of packFiles) {
+      const nameBytes = enc.encode(file.name);
+      const dataBytes = file.data;
+      const crc = crc32(dataBytes);
+      const local = concatBytes([
+        u32(0x04034b50), u16(20), u16(0), u16(0), u16(dt.dosTime), u16(dt.dosDate),
+        u32(crc), u32(dataBytes.length), u32(dataBytes.length),
+        u16(nameBytes.length), u16(0), nameBytes, dataBytes,
+      ]);
+      localParts.push(local);
+      const central = concatBytes([
+        u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(dt.dosTime), u16(dt.dosDate),
+        u32(crc), u32(dataBytes.length), u32(dataBytes.length),
+        u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset), nameBytes,
+      ]);
+      centralParts.push(central);
+      offset += local.length;
+    }
+    const centralSize = centralParts.reduce((s, a) => s + a.length, 0);
+    const end = concatBytes([
+      u32(0x06054b50), u16(0), u16(0),
+      u16(packFiles.length), u16(packFiles.length),
+      u32(centralSize), u32(offset), u16(0),
+    ]);
+    return new Blob([...localParts, ...centralParts, end], { type: 'application/zip' });
+  }
+
+  downloadFullPackBtn.addEventListener('click', async () => {
+    try {
+      downloadFullPackBtn.disabled = true;
+      downloadFullPackBtn.textContent = '⏳ Building pack…';
+      const zip = await buildFullPack();
+      const frameWcm = round(state.cols * Number(controls.dotDiameterCm.value), 1);
+      const frameHcm = round(state.rows * Number(controls.dotDiameterCm.value), 1);
+      downloadBlob(zip, `dotart_full_pack_${frameWcm}x${frameHcm}cm.zip`);
+      setStatus('Full pack downloaded!');
+    } catch (err) {
+      setStatus('Full pack error: ' + (err.message || err));
+    } finally {
+      downloadFullPackBtn.disabled = false;
+      downloadFullPackBtn.textContent = '📦 Download Full Pack (.zip)';
+    }
+  });
 
   exportBaseframeBtn.addEventListener('click', () => {
     try {
