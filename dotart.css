@@ -540,6 +540,28 @@ input[type="file"]:focus, select:focus {
   max-height: none;
 }
 
+/* ─── Crop / zoom controls ─── */
+.crop-hint {
+  font-size: 11px;
+  color: var(--apple-secondary-text);
+  white-space: nowrap;
+}
+
+.btn-crop-reset {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--apple-border);
+  background: rgba(0, 113, 227, 0.08);
+  color: var(--apple-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+.btn-crop-reset:hover { background: rgba(0, 113, 227, 0.18); }
+
 .map-scroll {
   width: 100%;
   overflow: auto;

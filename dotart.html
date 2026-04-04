@@ -106,7 +106,7 @@
               <label for="frameWidthCm" data-i18n="label.frameWidth">Frame width</label>
               <span class="slider-val" id="frameWidthVal">40 cm</span>
             </div>
-            <input id="frameWidthCm" type="range" min="20" max="200" step="1" value="40" class="slider" />
+            <input id="frameWidthCm" type="range" min="10" max="200" step="1" value="40" class="slider" />
             <span class="hint" data-i18n="hint.frame">Height calculated proportionally from the image.</span>
           </div>
 
@@ -171,8 +171,14 @@
         <!-- Row 1: original image + color summary -->
         <div class="canvas-grid">
           <div class="canvas-card">
-            <div class="canvas-card-head" data-i18n="card.original">Original image</div>
-            <div class="canvas-card-body">
+            <div class="canvas-card-head" style="display:flex;align-items:center;justify-content:space-between;">
+              <span data-i18n="card.original">Original image</span>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <span class="crop-hint">Scroll = zoom · Drag = crop · Alt+drag = pan</span>
+                <button id="resetCropBtn" class="btn-crop-reset" title="Reset zoom and crop">↺ Reset</button>
+              </div>
+            </div>
+            <div class="canvas-card-body" style="padding:0;overflow:hidden;">
               <canvas id="sourceCanvas"></canvas>
             </div>
           </div>

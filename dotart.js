@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
     rows: 0,
     frameWidthCm: 0,
     frameHeightCm: 0,
+    // Crop state (normalized 0–1 in image space)
+    crop: null,       // { x, y, w, h } or null = full image
+    // Pan/zoom for the source canvas viewer
+    view: { zoom: 1, panX: 0, panY: 0 },
   };
 
   // ─────────────────────────────────────────────
@@ -198,34 +202,208 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function renderOriginal() {
-    const ctx = sourceCanvas.getContext('2d');
-    ctx.clearRect(0, 0, sourceCanvas.width, sourceCanvas.height);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, sourceCanvas.width, sourceCanvas.height);
-    if (!state.image) return;
-    const scale = Math.min(
-      sourceCanvas.width  / state.originalWidth,
-      sourceCanvas.height / state.originalHeight
-    );
-    const w = state.originalWidth  * scale;
-    const h = state.originalHeight * scale;
-    const x = (sourceCanvas.width  - w) / 2;
-    const y = (sourceCanvas.height - h) / 2;
-    ctx.drawImage(state.image, x, y, w, h);
+  // ── Crop / zoom helpers ──
+
+  // Convert canvas pixel → normalized image coordinate (0–1)
+  function canvasToNorm(cx, cy) {
+    const { imgX, imgY, imgW, imgH } = getImgRect();
+    return {
+      nx: clamp((cx - imgX) / imgW, 0, 1),
+      ny: clamp((cy - imgY) / imgH, 0, 1),
+    };
   }
 
-  function sampleGrid(img, cols) {
-    const ratio = img.height / img.width;
+  // Get where the image is drawn on the canvas (with zoom+pan)
+  function getImgRect() {
+    const cw = sourceCanvas.width, ch = sourceCanvas.height;
+    const { zoom, panX, panY } = state.view;
+    const baseScale = Math.min(cw / state.originalWidth, ch / state.originalHeight);
+    const scale = baseScale * zoom;
+    const imgW  = state.originalWidth  * scale;
+    const imgH  = state.originalHeight * scale;
+    const imgX  = (cw - imgW) / 2 + panX;
+    const imgY  = (ch - imgH) / 2 + panY;
+    return { imgX, imgY, imgW, imgH, scale };
+  }
+
+  function renderOriginal() {
+    const ctx = sourceCanvas.getContext('2d');
+    const cw = sourceCanvas.width, ch = sourceCanvas.height;
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.fillStyle = isDark() ? '#1c1c1e' : '#f0f4ff';
+    ctx.fillRect(0, 0, cw, ch);
+    if (!state.image) return;
+
+    const { imgX, imgY, imgW, imgH } = getImgRect();
+
+    // Draw image
+    ctx.drawImage(state.image, imgX, imgY, imgW, imgH);
+
+    // Grid overlay (10×10 cells)
+    const GRID = 10;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 0.5;
+    for (let i = 1; i < GRID; i++) {
+      const x = imgX + imgW * i / GRID;
+      ctx.beginPath(); ctx.moveTo(x, imgY); ctx.lineTo(x, imgY + imgH); ctx.stroke();
+    }
+    for (let j = 1; j < GRID; j++) {
+      const y = imgY + imgH * j / GRID;
+      ctx.beginPath(); ctx.moveTo(imgX, y); ctx.lineTo(imgX + imgW, y); ctx.stroke();
+    }
+    // Rule-of-thirds in blue
+    ctx.strokeStyle = 'rgba(0,113,227,0.35)';
+    ctx.lineWidth = 1;
+    for (const t of [1/3, 2/3]) {
+      const x = imgX + imgW * t;
+      const y = imgY + imgH * t;
+      ctx.beginPath(); ctx.moveTo(x, imgY); ctx.lineTo(x, imgY + imgH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(imgX, y); ctx.lineTo(imgX + imgW, y); ctx.stroke();
+    }
+    ctx.restore();
+
+    // Crop rectangle
+    if (state.crop) {
+      const { x: nx, y: ny, w: nw, h: nh } = state.crop;
+      const rx = imgX + nx * imgW, ry = imgY + ny * imgH;
+      const rw = nw * imgW,        rh = nh * imgH;
+
+      // Dim area outside crop
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(imgX, imgY, imgW, ry - imgY);                  // top
+      ctx.fillRect(imgX, ry + rh, imgW, imgY + imgH - ry - rh);  // bottom
+      ctx.fillRect(imgX, ry, rx - imgX, rh);                      // left
+      ctx.fillRect(rx + rw, ry, imgX + imgW - rx - rw, rh);       // right
+
+      // Crop border
+      ctx.strokeStyle = '#0071e3';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      ctx.strokeRect(rx, ry, rw, rh);
+
+      // Corner handles
+      const hs = 8;
+      ctx.fillStyle = '#fff';
+      for (const [hx, hy] of [[rx,ry],[rx+rw,ry],[rx,ry+rh],[rx+rw,ry+rh]]) {
+        ctx.fillRect(hx - hs/2, hy - hs/2, hs, hs);
+        ctx.strokeRect(hx - hs/2, hy - hs/2, hs, hs);
+      }
+      ctx.restore();
+    }
+
+    // Zoom badge
+    if (state.view.zoom !== 1 || state.crop) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.beginPath(); ctx.roundRect(8, 8, state.crop ? 148 : 72, 24, 6); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = '12px Inter, Arial';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${Math.round(state.view.zoom * 100)}%` + (state.crop ? '  ✂ Crop ativo' : ''), 14, 20);
+      ctx.restore();
+    }
+  }
+
+  // ── Crop interaction state ──
+  let _cropDrag = null;  // { mode: 'draw'|'pan', startNX, startNY, startPanX, startPanY }
+
+  function sourceCanvasPointerDown(e) {
+    if (!state.image) return;
+    e.preventDefault();
+    const rect  = sourceCanvas.getBoundingClientRect();
+    const scaleX = sourceCanvas.width  / rect.width;
+    const scaleY = sourceCanvas.height / rect.height;
+    const cx    = (e.clientX - rect.left) * scaleX;
+    const cy    = (e.clientY - rect.top)  * scaleY;
+
+    if (e.altKey || e.button === 1) {
+      // Alt+drag or middle button = pan
+      _cropDrag = { mode: 'pan', startCX: cx, startCY: cy,
+                    startPanX: state.view.panX, startPanY: state.view.panY };
+    } else {
+      // Left drag = draw crop
+      const { nx, ny } = canvasToNorm(cx, cy);
+      _cropDrag = { mode: 'draw', startNX: nx, startNY: ny };
+      state.crop = { x: nx, y: ny, w: 0, h: 0 };
+    }
+  }
+
+  function sourceCanvasPointerMove(e) {
+    if (!_cropDrag || !state.image) return;
+    const rect  = sourceCanvas.getBoundingClientRect();
+    const scaleX = sourceCanvas.width  / rect.width;
+    const scaleY = sourceCanvas.height / rect.height;
+    const cx    = (e.clientX - rect.left) * scaleX;
+    const cy    = (e.clientY - rect.top)  * scaleY;
+
+    if (_cropDrag.mode === 'pan') {
+      state.view.panX = _cropDrag.startPanX + (cx - _cropDrag.startCX);
+      state.view.panY = _cropDrag.startPanY + (cy - _cropDrag.startCY);
+    } else {
+      const { nx, ny } = canvasToNorm(cx, cy);
+      state.crop = {
+        x: Math.min(_cropDrag.startNX, nx),
+        y: Math.min(_cropDrag.startNY, ny),
+        w: Math.abs(nx - _cropDrag.startNX),
+        h: Math.abs(ny - _cropDrag.startNY),
+      };
+    }
+    renderOriginal();
+  }
+
+  function sourceCanvasPointerUp() {
+    if (_cropDrag?.mode === 'draw' && state.crop) {
+      // Discard tiny selections (< 2% of image)
+      if (state.crop.w < 0.02 || state.crop.h < 0.02) state.crop = null;
+    }
+    _cropDrag = null;
+    renderOriginal();
+  }
+
+  sourceCanvas.addEventListener('pointerdown', sourceCanvasPointerDown);
+  sourceCanvas.addEventListener('pointermove', sourceCanvasPointerMove);
+  sourceCanvas.addEventListener('pointerup',   sourceCanvasPointerUp);
+  sourceCanvas.addEventListener('pointerleave', sourceCanvasPointerUp);
+  sourceCanvas.style.cursor = 'crosshair';
+
+  sourceCanvas.addEventListener('wheel', e => {
+    if (!state.image) return;
+    e.preventDefault();
+    const rect  = sourceCanvas.getBoundingClientRect();
+    const scaleX = sourceCanvas.width  / rect.width;
+    const scaleY = sourceCanvas.height / rect.height;
+    const cx    = (e.clientX - rect.left) * scaleX;
+    const cy    = (e.clientY - rect.top)  * scaleY;
+
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    const newZoom = clamp(state.view.zoom * factor, 1, 8);
+
+    // Zoom toward cursor position
+    state.view.panX = cx + (state.view.panX - cx) * (newZoom / state.view.zoom);
+    state.view.panY = cy + (state.view.panY - cy) * (newZoom / state.view.zoom);
+    state.view.zoom = newZoom;
+    if (newZoom === 1) { state.view.panX = 0; state.view.panY = 0; }
+    renderOriginal();
+  }, { passive: false });
+
+  function sampleGrid(img, cols, cropRegion) {
+    // Source rectangle in image pixels
+    const sx = cropRegion ? Math.round(cropRegion.x * img.width)  : 0;
+    const sy = cropRegion ? Math.round(cropRegion.y * img.height) : 0;
+    const sw = cropRegion ? Math.round(cropRegion.w * img.width)  : img.width;
+    const sh = cropRegion ? Math.round(cropRegion.h * img.height) : img.height;
+
+    const ratio = sh / sw;
     const rows  = Math.max(1, Math.round(cols * ratio));
     const c = document.createElement('canvas');
     c.width = cols; c.height = rows;
     const ctx = c.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(img, 0, 0, cols, rows);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cols, rows);
     const data = ctx.getImageData(0, 0, cols, rows).data;
     const pixels = [];
     for (let i = 0; i < data.length; i += 4) {
-      // Skip fully transparent pixels
       if (data[i + 3] > 10) pixels.push([data[i], data[i + 1], data[i + 2]]);
       else pixels.push(null);
     }
@@ -1608,7 +1786,7 @@ ${objectNodes}
     const dotDiameterCm = clamp(Number(controls.dotDiameterCm.value) || 2, 1, 10);
     const dotHeightCm   = clamp(Number(controls.dotHeightCm.value)   || 2, 1, 10);
     const colorCount    = clamp(Math.round(Number(controls.colorCount.value) || 6), 2, 20);
-    const frameWidthCm  = Math.max(20, Number(controls.frameWidthCm.value) || 40);
+    const frameWidthCm  = Math.max(10, Number(controls.frameWidthCm.value) || 40);
 
     const cols = Math.max(1, Math.floor(frameWidthCm / dotDiameterCm));
     if (cols > 220) {
@@ -1622,7 +1800,7 @@ ${objectNodes}
     // Yield to browser so the status message renders
     await new Promise(r => setTimeout(r, 0));
 
-    const sampled = sampleGrid(state.image, cols);
+    const sampled = sampleGrid(state.image, cols, state.crop);
     // Filter out transparent pixels for quantization only
     const opaquePixels = sampled.pixels.filter(p => p !== null);
     if (opaquePixels.length === 0) { setStatus(t('status.transparent')); generateBtn.disabled = false; return; }
@@ -1732,6 +1910,14 @@ ${objectNodes}
   // ─────────────────────────────────────────────
   // T. Event listeners
   // ─────────────────────────────────────────────
+  function resetCropView() {
+    state.crop = null;
+    state.view = { zoom: 1, panX: 0, panY: 0 };
+    renderOriginal();
+  }
+
+  el('resetCropBtn').addEventListener('click', resetCropView);
+
   imageInput.addEventListener('change', async e => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1740,7 +1926,7 @@ ${objectNodes}
       state.image         = img;
       state.originalWidth  = img.width;
       state.originalHeight = img.height;
-      renderOriginal();
+      resetCropView();
       setStatus(t('status.imageLoaded'));
     } catch {
       setStatus(t('status.imageError'));
