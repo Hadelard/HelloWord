@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     grid: null,
     palette: [],
     counts: [],
+    colorHeights: [],   // per-color height override (cm); null = use global dotHeightCm
     cols: 0,
     rows: 0,
     frameWidthCm: 0,
@@ -858,9 +859,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return buildPrism([[x, y], [x+w, y], [x+w, y+d], [x, y+d]], z, z + h);
   }
 
-  function buildDotMesh() {
+  function buildDotMesh(heightCmOverride) {
     const diameter = mm(clamp(Number(controls.dotDiameterCm.value), 0.5, 10));
-    const height   = mm(clamp(Number(controls.dotHeightCm.value),   0.5, 10));
+    const heightCm = heightCmOverride != null ? heightCmOverride : Number(controls.dotHeightCm.value);
+    const height   = mm(clamp(heightCm, 0.5, 12));
     const family   = controls.shapeFamily.value;
     const topStyle = controls.topStyle.value;
     const base     = makePolygon2D(family, diameter / 2);
@@ -1219,7 +1221,6 @@ ${objectNodes}
     if (!state.grid || !state.palette.length)
       throw new Error('Generate the project before saving the full 3MF.');
 
-    const baseMesh    = buildDotMesh();
     const diameterMm  = mm(clamp(Number(controls.dotDiameterCm.value), 0.5, 10));
     const pitch       = diameterMm + Math.max(1.5, Math.min(4, diameterMm * 0.08));
     const bed         = 250; // mm  (25 cm)
@@ -1242,6 +1243,7 @@ ${objectNodes}
     const objects = [];
     let plateNumber = 1;
     for (const plate of plates) {
+      const baseMesh = buildDotMesh(state.colorHeights[plate.colorIndex]);
       const meshes = [];
       for (let i = 0; i < plate.count; i++) {
         const gx = i % perRow;
@@ -1303,17 +1305,17 @@ ${objectNodes}
     // This guarantees identical spacing in the base and in the print layout
     const stepMm      = diameterMm + Math.max(1.5, Math.min(4, diameterMm * 0.08));
 
-    // Cavity radii based on diameter (not step) so the socket fits the dot
-    const seatInset   = clamp(diameterMm * 0.0045, 0.08, 0.16);
-    const socketWall  = clamp(diameterMm * 0.055, 1.0, 1.6);
-    const socketOpenR = (diameterMm - seatInset * 2) / 2;  // inner radius = dot clearance
-    const socketOutR  = Math.min(socketOpenR + socketWall, stepMm / 2 - 0.4); // outer bounded by step
+    // Pocket cavity: blind hole 0.5mm deep, no raised walls
+    // socketOutR fills to cell boundary so adjacent cells share material — eliminates thin walls
+    const fitClearance = 0.25;
+    const socketOpenR  = diameterMm / 2 + fitClearance;  // hole radius = dot radius + clearance
+    const socketOutR   = stepMm / 2;                      // fills to cell edge, adjacent rings merge
 
-    const totalThick  = 4.0;
-    const floorThick  = 2.0;
-    const wallH       = totalThick - floorThick;
-    const outerFrame  = Math.max(3.2, seatInset + 2.6);
-    const connRail    = clamp(socketWall + 0.45, 1.8, 2.5);
+    const totalThick  = 4.5;   // +0.5mm to accommodate pocket depth
+    const floorThick  = 4.0;   // solid base below pockets
+    const wallH       = totalThick - floorThick;  // 0.5mm pocket layer
+    const outerFrame  = 3.2;
+    const connRail    = 1.8;
     const connDepth   = 6.0;
     const slotSpan    = clamp(stepMm * 1.8, 18, 30);
     const bodyMaxSide = 240 - connDepth - outerFrame * 2;
@@ -1590,9 +1592,12 @@ ${objectNodes}
 
   function updatePalette() {
     if (!state.palette.length) { paletteList.innerHTML = ''; return; }
+    const baseHeight = Number(controls.dotHeightCm.value);
+    const maxHeight  = round(baseHeight + 2, 1);
     paletteList.innerHTML = state.palette.map((color, i) => {
-      const hex = rgbToHex(color);
-      const numColor = luminance(color) > 160 ? '#111827' : '#ffffff';
+      const hex        = rgbToHex(color);
+      const numColor   = luminance(color) > 160 ? '#111827' : '#ffffff';
+      const curHeight  = state.colorHeights[i] != null ? state.colorHeights[i] : baseHeight;
       return `
         <div class="swatch">
           <div class="swatch-box" style="background:${hex}" title="Click to change color">
@@ -1606,6 +1611,11 @@ ${objectNodes}
           <div class="swatch-count">
             <strong>${state.counts[i] || 0}</strong>
             <span>${t('palette.dots')}</span>
+          </div>
+          <div class="swatch-height">
+            <label class="swatch-height-label">H: <span class="swatch-height-val">${round(curHeight,1)} cm</span></label>
+            <input type="range" class="swatch-height-input" data-index="${i}"
+              min="${baseHeight}" max="${maxHeight}" step="0.1" value="${curHeight}">
           </div>
         </div>`;
     }).join('');
@@ -1625,6 +1635,15 @@ ${objectNodes}
         swatch.querySelector('.swatch-num').style.color =
           luminance(state.palette[idx]) > 160 ? '#111827' : '#ffffff';
         renderDotMap();
+      });
+    });
+
+    paletteList.querySelectorAll('.swatch-height-input').forEach(input => {
+      input.addEventListener('input', e => {
+        const idx = Number(e.target.dataset.index);
+        const val = round(Number(e.target.value), 1);
+        state.colorHeights[idx] = val;
+        e.target.closest('.swatch').querySelector('.swatch-height-val').textContent = `${val} cm`;
       });
     });
   }
@@ -1819,6 +1838,7 @@ ${objectNodes}
     state.cols          = sampled.cols;
     state.rows          = sampled.rows;
     state.counts        = new Array(q.palette.length).fill(0);
+    state.colorHeights  = new Array(q.palette.length).fill(null);
     q.assignments.forEach(i => state.counts[i]++);
     state.frameWidthCm  = sampled.cols * dotDiameterCm;
     state.frameHeightCm = sampled.rows * dotDiameterCm;
@@ -2013,19 +2033,21 @@ ${objectNodes}
     const step = totalDots > MAX_DOTS ? Math.ceil(Math.sqrt(totalDots / MAX_DOTS)) : 1;
     const subsampled = step > 1;
 
-    const baseMesh = buildDotMesh();
+    // Build one mesh per unique color height so per-color heights show in preview
+    const meshByColor = state.palette.map((_, ci) => buildDotMesh(state.colorHeights[ci]));
     const worldTris = [];
 
     for (let row = 0; row < state.rows; row += step) {
       for (let col = 0; col < state.cols; col += step) {
         const colorIdx = state.grid[row * state.cols + col];
         const rgb      = state.palette[colorIdx];
+        const mesh     = meshByColor[colorIdx];
         const tx = offX + col * pitchMm + pitchMm / 2;
         const ty = -offY - row * pitchMm - pitchMm / 2;
-        for (const [ia, ib, ic] of baseMesh.faces) {
-          const a = baseMesh.vertices[ia];
-          const b = baseMesh.vertices[ib];
-          const c = baseMesh.vertices[ic];
+        for (const [ia, ib, ic] of mesh.faces) {
+          const a = mesh.vertices[ia];
+          const b = mesh.vertices[ib];
+          const c = mesh.vertices[ic];
           const wa = [a[0] + tx, a[1] + ty, a[2]];
           const wb = [b[0] + tx, b[1] + ty, b[2]];
           const wc = [c[0] + tx, c[1] + ty, c[2]];
