@@ -859,8 +859,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function buildDotMesh() {
-    const diameter = mm(clamp(Number(controls.dotDiameterCm.value), 1, 10));
-    const height   = mm(clamp(Number(controls.dotHeightCm.value),   1, 10));
+    const diameter = mm(clamp(Number(controls.dotDiameterCm.value), 0.5, 10));
+    const height   = mm(clamp(Number(controls.dotHeightCm.value),   0.5, 10));
     const family   = controls.shapeFamily.value;
     const topStyle = controls.topStyle.value;
     const base     = makePolygon2D(family, diameter / 2);
@@ -1220,7 +1220,7 @@ ${objectNodes}
       throw new Error('Generate the project before saving the full 3MF.');
 
     const baseMesh    = buildDotMesh();
-    const diameterMm  = mm(clamp(Number(controls.dotDiameterCm.value), 1, 10));
+    const diameterMm  = mm(clamp(Number(controls.dotDiameterCm.value), 0.5, 10));
     const pitch       = diameterMm + Math.max(1.5, Math.min(4, diameterMm * 0.08));
     const bed         = 250; // mm  (25 cm)
     const margin      = Math.max(4, Math.min(10, diameterMm * 0.18));
@@ -1297,7 +1297,7 @@ ${objectNodes}
 
   function getBaseframeConfig() {
     // Dot diameter — controls cavity size
-    const diameterMm  = mm(clamp(Number(controls.dotDiameterCm.value), 1, 10));
+    const diameterMm  = mm(clamp(Number(controls.dotDiameterCm.value), 0.5, 10));
 
     // Step = center-to-center distance — same formula as buildFullProject3MF
     // This guarantees identical spacing in the base and in the print layout
@@ -1316,7 +1316,7 @@ ${objectNodes}
     const connRail    = clamp(socketWall + 0.45, 1.8, 2.5);
     const connDepth   = 6.0;
     const slotSpan    = clamp(stepMm * 1.8, 18, 30);
-    const bodyMaxSide = 200 - connDepth - outerFrame * 2;
+    const bodyMaxSide = 240 - connDepth - outerFrame * 2;
     const colsPerPlate = Math.max(1, Math.floor(bodyMaxSide / stepMm));
     const rowsPerPlate = Math.max(1, Math.floor(bodyMaxSide / stepMm));
 
@@ -1783,8 +1783,8 @@ ${objectNodes}
   async function generate() {
     if (!state.image) { setStatus(t('status.upload')); return; }
 
-    const dotDiameterCm = clamp(Number(controls.dotDiameterCm.value) || 2, 1, 10);
-    const dotHeightCm   = clamp(Number(controls.dotHeightCm.value)   || 2, 1, 10);
+    const dotDiameterCm = clamp(Number(controls.dotDiameterCm.value) || 2, 0.5, 10);
+    const dotHeightCm   = clamp(Number(controls.dotHeightCm.value)   || 2, 0.5, 10);
     const colorCount    = clamp(Math.round(Number(controls.colorCount.value) || 6), 2, 20);
     const frameWidthCm  = Math.max(10, Number(controls.frameWidthCm.value) || 40);
 
@@ -1999,7 +1999,7 @@ ${objectNodes}
   function open3DProjectPreview() {
     if (!state.grid || !state.palette.length) return;
 
-    const diameterMm = mm(clamp(Number(controls.dotDiameterCm.value), 1, 10));
+    const diameterMm = mm(clamp(Number(controls.dotDiameterCm.value), 0.5, 10));
     const pitchMm    = diameterMm + Math.max(1.5, Math.min(4, diameterMm * 0.08));
     const totalW     = state.cols * pitchMm;
     const totalH     = state.rows * pitchMm;
@@ -2118,7 +2118,7 @@ ${objectNodes}
       }
 
       // Ground shadow
-      const shadowY = proj([0, 0, 0])[1] + (mm(clamp(Number(controls.dotHeightCm.value), 1, 10))) * sc * 0.04;
+      const shadowY = proj([0, 0, 0])[1] + (mm(clamp(Number(controls.dotHeightCm.value), 0.5, 10))) * sc * 0.04;
       const shadowW = totalW * sc * 0.55;
       const shadowH = totalH * sc * 0.12;
       ctx.save();
@@ -2187,7 +2187,7 @@ ${objectNodes}
 
     const { jsPDF } = window.jspdf;
 
-    const diameterMm = mm(clamp(Number(controls.dotDiameterCm.value), 1, 10));
+    const diameterMm = mm(clamp(Number(controls.dotDiameterCm.value), 0.5, 10));
     const cellMm     = diameterMm;                   // cell pitch = dot diameter
     const stencilR   = diameterMm * 0.42;            // opening radius (same as baseframe clearance)
     const shape      = controls.shapeFamily.value;
