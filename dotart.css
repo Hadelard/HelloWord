@@ -430,6 +430,19 @@ input[type="file"]:focus, select:focus {
   background: rgba(0, 0, 0, 0.07);
 }
 
+.btn-baseframe {
+  background: linear-gradient(135deg, #34c759, #28a745);
+  color: #fff;
+  border: none;
+  letter-spacing: 0.1px;
+}
+.btn-baseframe:hover:not(:disabled) {
+  background: linear-gradient(135deg, #30d158, #22a03a);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(52, 199, 89, 0.35);
+}
+.btn-baseframe:disabled { opacity: 0.45; }
+
 .btn-tertiary {
   background: transparent;
   border: none;
@@ -640,6 +653,108 @@ canvas {
   border-radius: 8px;
   z-index: 1;
 }
+
+/* ─── 3D Preview button ─── */
+.btn-3d-preview {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--apple-primary);
+  background: rgba(0, 113, 227, 0.08);
+  color: var(--apple-primary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+.btn-3d-preview:hover:not(:disabled) {
+  background: rgba(0, 113, 227, 0.18);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+}
+.btn-3d-preview:disabled {
+  opacity: 0.35;
+  cursor: default;
+  border-color: var(--apple-border);
+  color: var(--apple-secondary-text);
+}
+
+/* ─── 3D Preview modal ─── */
+#p3d-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  animation: p3d-fadein 0.2s ease;
+}
+
+@keyframes p3d-fadein {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+#p3d-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+#p3d-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.55);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+#p3d-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.2px;
+}
+
+#p3d-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  flex: 1;
+}
+
+#p3d-close-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+#p3d-close-btn:hover { background: rgba(255, 255, 255, 0.22); }
+
+#p3d-canvas {
+  flex: 1;
+  display: block;
+  cursor: grab;
+  border-radius: 0;
+  max-width: none;
+  height: auto;
+}
+#p3d-canvas:active { cursor: grabbing; }
 
 /* ─── Dot color picker popover ─── */
 #dot-color-picker {

@@ -1833,7 +1833,7 @@ ${objectNodes}
 
     setStatus(tFmt('status.done', { cols: state.cols, rows: state.rows, colors: state.palette.length }));
 
-    [downloadMapBtn, exportStlBtn, export3mfBtn, saveProjectBtn, exportBaseframeBtn].forEach(b => b.disabled = false);
+    [downloadMapBtn, exportStlBtn, export3mfBtn, saveProjectBtn, exportBaseframeBtn, open3dPreviewBtn].forEach(b => b.disabled = false);
     generateBtn.disabled = false;
   }
 
@@ -1989,6 +1989,189 @@ ${objectNodes}
     const html = buildProductionHTML();
     downloadBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), 'dotart_manual.html');
   });
+
+  // ─────────────────────────────────────────────
+  // V. Full 3D Project Preview modal
+  // ─────────────────────────────────────────────
+
+  const open3dPreviewBtn = el('open3dPreviewBtn');
+
+  function open3DProjectPreview() {
+    if (!state.grid || !state.palette.length) return;
+
+    const diameterMm = mm(clamp(Number(controls.dotDiameterCm.value), 1, 10));
+    const pitchMm    = diameterMm + Math.max(1.5, Math.min(4, diameterMm * 0.08));
+    const totalW     = state.cols * pitchMm;
+    const totalH     = state.rows * pitchMm;
+    const offX       = -(totalW / 2);
+    const offY       = -(totalH / 2);
+
+    // Build world-space triangles once — reuse on every rotation/zoom
+    // For large grids subsample to keep render fast
+    const MAX_DOTS = 2500;
+    const totalDots = state.cols * state.rows;
+    const step = totalDots > MAX_DOTS ? Math.ceil(Math.sqrt(totalDots / MAX_DOTS)) : 1;
+    const subsampled = step > 1;
+
+    const baseMesh = buildDotMesh();
+    const worldTris = [];
+
+    for (let row = 0; row < state.rows; row += step) {
+      for (let col = 0; col < state.cols; col += step) {
+        const colorIdx = state.grid[row * state.cols + col];
+        const rgb      = state.palette[colorIdx];
+        const tx = offX + col * pitchMm + pitchMm / 2;
+        const ty = -offY - row * pitchMm - pitchMm / 2;
+        for (const [ia, ib, ic] of baseMesh.faces) {
+          const a = baseMesh.vertices[ia];
+          const b = baseMesh.vertices[ib];
+          const c = baseMesh.vertices[ic];
+          const wa = [a[0] + tx, a[1] + ty, a[2]];
+          const wb = [b[0] + tx, b[1] + ty, b[2]];
+          const wc = [c[0] + tx, c[1] + ty, c[2]];
+          worldTris.push({ wa, wb, wc, n: normalOf(wa, wb, wc), rgb });
+        }
+      }
+    }
+
+    // Rotation / zoom state
+    let rotX = 0.55, rotY = 0.4, zoom = 1;
+    let dragging = false, lastX = 0, lastY = 0;
+
+    // ── Modal DOM ──
+    const modal = document.createElement('div');
+    modal.id = 'p3d-modal';
+    modal.innerHTML = `
+      <div id="p3d-inner">
+        <div id="p3d-header">
+          <span id="p3d-title">3D Project Preview — ${state.cols}×${state.rows} dots · ${state.palette.length} colors${subsampled ? ' · ⚡ simplified' : ''}</span>
+          <span id="p3d-hint">Drag to rotate &nbsp;·&nbsp; Scroll to zoom &nbsp;·&nbsp; Double-click to reset view</span>
+          <button id="p3d-close-btn">✕</button>
+        </div>
+        <canvas id="p3d-canvas"></canvas>
+      </div>`;
+    document.body.appendChild(modal);
+
+    const canvas = document.getElementById('p3d-canvas');
+
+    function resizeCanvas() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight - 52;
+    }
+
+    function drawScene() {
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width, H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+
+      // Background gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, isDark() ? '#0d1117' : '#e8eef8');
+      grad.addColorStop(1, isDark() ? '#1c1c2e' : '#f0f4ff');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
+      const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+
+      // Scale to fit frame in canvas
+      const frameMax  = Math.max(totalW, totalH);
+      const fitScale  = (Math.min(W, H) * 0.62) / (frameMax || 1);
+      const sc        = fitScale * zoom;
+
+      function proj([x, y, z]) {
+        const x1 = x * cosY - z * sinY;
+        const z1 = x * sinY + z * cosY;
+        const y2 = y * cosX - z1 * sinX;
+        const z2 = y * sinX + z1 * cosX;
+        return [x1 * sc + W / 2, -y2 * sc + H * 0.52, z2];
+      }
+
+      // Light direction
+      const LIGHT = [-0.4, -0.5, 1.0];
+      const ll = Math.hypot(...LIGHT);
+      const [lx, ly, lz] = [LIGHT[0]/ll, LIGHT[1]/ll, LIGHT[2]/ll];
+
+      // Project + shade all triangles
+      const projected = worldTris.map(({ wa, wb, wc, n, rgb }) => {
+        const pa = proj(wa), pb = proj(wb), pc = proj(wc);
+        const depth = (pa[2] + pb[2] + pc[2]) / 3;
+        const diff  = Math.max(0, n[0]*lx + n[1]*ly + n[2]*lz);
+        const f     = 0.28 + 0.72 * diff;
+        const r = Math.round(clamp(rgb[0] * f, 0, 255));
+        const g = Math.round(clamp(rgb[1] * f, 0, 255));
+        const b = Math.round(clamp(rgb[2] * f, 0, 255));
+        return { pa, pb, pc, depth, fill: `rgb(${r},${g},${b})` };
+      });
+
+      // Painter's algorithm
+      projected.sort((a, b) => a.depth - b.depth);
+
+      for (const { pa, pb, pc, fill } of projected) {
+        ctx.beginPath();
+        ctx.moveTo(pa[0], pa[1]);
+        ctx.lineTo(pb[0], pb[1]);
+        ctx.lineTo(pc[0], pc[1]);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+
+      // Ground shadow
+      const shadowY = proj([0, 0, 0])[1] + (mm(clamp(Number(controls.dotHeightCm.value), 1, 10))) * sc * 0.04;
+      const shadowW = totalW * sc * 0.55;
+      const shadowH = totalH * sc * 0.12;
+      ctx.save();
+      const sg = ctx.createRadialGradient(W/2, shadowY, 0, W/2, shadowY, shadowW * 0.7);
+      sg.addColorStop(0, 'rgba(0,0,0,0.18)');
+      sg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.ellipse(W/2, shadowY, shadowW, shadowH, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // ── Interaction ──
+    canvas.addEventListener('pointerdown', e => {
+      dragging = true; lastX = e.clientX; lastY = e.clientY;
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      rotY += (e.clientX - lastX) * 0.007;
+      rotX  = clamp(rotX + (e.clientY - lastY) * 0.007, -Math.PI / 2, Math.PI / 2);
+      lastX = e.clientX; lastY = e.clientY;
+      drawScene();
+    });
+    canvas.addEventListener('pointerup',    () => { dragging = false; });
+    canvas.addEventListener('pointerleave', () => { dragging = false; });
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      zoom = clamp(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 0.15, 6);
+      drawScene();
+    }, { passive: false });
+    canvas.addEventListener('dblclick', () => {
+      rotX = 0.55; rotY = 0.4; zoom = 1; drawScene();
+    });
+
+    // ── Close ──
+    document.getElementById('p3d-close-btn').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+    const onKey = e => { if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', onKey); } };
+    document.addEventListener('keydown', onKey);
+
+    const onResize = () => { resizeCanvas(); drawScene(); };
+    window.addEventListener('resize', onResize);
+    modal.addEventListener('remove', () => window.removeEventListener('resize', onResize));
+
+    // Initial render
+    resizeCanvas();
+    drawScene();
+  }
+
+  open3dPreviewBtn.addEventListener('click', open3DProjectPreview);
 
   exportBaseframeBtn.addEventListener('click', () => {
     try {

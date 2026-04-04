@@ -143,10 +143,10 @@
             <button id="saveProjectBtn" class="btn btn-generate" disabled data-i18n="btn.saveProject">Save full project (.3mf)</button>
           </div>
           <div class="btn-stack">
-            <button id="exportStlBtn" class="btn btn-tertiary" disabled data-i18n="btn.exportStl">Export STL (unit dot)</button>
+            <button id="exportBaseframeBtn" class="btn btn-baseframe" disabled>⬡ Download Full Baseframe (.3mf)</button>
           </div>
           <div class="btn-stack">
-            <button id="exportBaseframeBtn" class="btn btn-tertiary" disabled>Download Full Baseframe (.3mf)</button>
+            <button id="exportStlBtn" class="btn btn-tertiary" disabled data-i18n="btn.exportStl">Export STL (unit dot)</button>
           </div>
           <!-- Unit 3MF hidden for now, kept in DOM for JS compatibility -->
           <div style="display:none"><button id="export3mfBtn" disabled>Export 3MF</button></div>
@@ -192,7 +192,15 @@
 
         <!-- Row 2: dot art map full-width -->
         <div class="canvas-card">
-          <div class="canvas-card-head" data-i18n="card.dotmap">Dot art map</div>
+          <div class="canvas-card-head" style="display:flex;align-items:center;justify-content:space-between;">
+            <span data-i18n="card.dotmap">Dot art map</span>
+            <button id="open3dPreviewBtn" class="btn-3d-preview" title="3D Project Preview" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+              </svg>
+              3D View
+            </button>
+          </div>
           <div class="canvas-card-body map-body">
             <div class="map-scroll">
               <canvas id="dotCanvas"></canvas>
