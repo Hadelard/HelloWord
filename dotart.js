@@ -30,11 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
     topStyle:      el('topStyle'),
   };
 
-  const generateBtn    = el('generateBtn');
-  const downloadMapBtn = el('downloadMapBtn');
-  const exportStlBtn   = el('exportStlBtn');
-  const export3mfBtn   = el('export3mfBtn');
-  const saveProjectBtn = el('saveProjectBtn');
+  const generateBtn        = el('generateBtn');
+  const downloadMapBtn     = el('downloadMapBtn');
+  const exportStlBtn       = el('exportStlBtn');
+  const export3mfBtn       = el('export3mfBtn');
+  const saveProjectBtn     = el('saveProjectBtn');
+  const exportBaseframeBtn = el('exportBaseframeBtn');
 
   // ─────────────────────────────────────────────
   // B. State
@@ -63,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const luminance = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
   function setStatus(html) { statusEl.innerHTML = html; }
+
 
   // ─────────────────────────────────────────────
   // C2. i18n
@@ -639,6 +641,45 @@ document.addEventListener('DOMContentLoaded', () => {
     return tris;
   }
 
+  // ─── Primitive mesh builders (used by dot mesh + baseframe) ───
+
+  function buildPrism(points, z0, z1) {
+    const vertices = [], faces = [];
+    const addV = (x, y, z) => { vertices.push([round(x,4), round(y,4), round(z,4)]); return vertices.length - 1; };
+    const low  = points.map(([x, y]) => addV(x, y, z0));
+    const high = points.map(([x, y]) => addV(x, y, z1));
+    for (const [a, b, c] of triangulateCap(low,  true))  faces.push([low[a],  low[b],  low[c]]);
+    for (const [a, b, c] of triangulateCap(high, false)) faces.push([high[a], high[b], high[c]]);
+    for (let i = 0; i < points.length; i++) {
+      const j = (i + 1) % points.length;
+      faces.push([low[i], low[j], high[j]], [low[i], high[j], high[i]]);
+    }
+    return { vertices, faces };
+  }
+
+  // Hollow prism (ring) — manifold by construction, no interior faces
+  function buildRingPrism(outerPts, innerPts, z0, z1) {
+    const vertices = [], faces = [];
+    const addV = (x, y, z) => { vertices.push([round(x,4), round(y,4), round(z,4)]); return vertices.length - 1; };
+    const n  = outerPts.length;
+    const oL = outerPts.map(([x, y]) => addV(x, y, z0));
+    const iL = innerPts.map(([x, y]) => addV(x, y, z0));
+    const oH = outerPts.map(([x, y]) => addV(x, y, z1));
+    const iH = innerPts.map(([x, y]) => addV(x, y, z1));
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      faces.push([oL[i], oL[j], iL[j]], [oL[i], iL[j], iL[i]]); // bottom annulus
+      faces.push([oH[i], iH[j], oH[j]], [oH[i], iH[i], iH[j]]); // top annulus
+      faces.push([oL[i], oL[j], oH[j]], [oL[i], oH[j], oH[i]]); // outer wall
+      faces.push([iL[i], iH[j], iL[j]], [iL[i], iH[i], iH[j]]); // inner wall
+    }
+    return { vertices, faces };
+  }
+
+  function buildBoxMesh(x, y, z, w, d, h) {
+    return buildPrism([[x, y], [x+w, y], [x+w, y+d], [x, y+d]], z, z + h);
+  }
+
   function buildDotMesh() {
     const diameter = mm(clamp(Number(controls.dotDiameterCm.value), 1, 10));
     const height   = mm(clamp(Number(controls.dotHeightCm.value),   1, 10));
@@ -1073,6 +1114,201 @@ ${objectNodes}
   }
 
   // ─────────────────────────────────────────────
+  // M2. Baseframe 3MF (modular physical base)
+  // ─────────────────────────────────────────────
+
+  function getBaseframeConfig() {
+    // Dot diameter — controls cavity size
+    const diameterMm  = mm(clamp(Number(controls.dotDiameterCm.value), 1, 10));
+
+    // Step = center-to-center distance — same formula as buildFullProject3MF
+    // This guarantees identical spacing in the base and in the print layout
+    const stepMm      = diameterMm + Math.max(1.5, Math.min(4, diameterMm * 0.08));
+
+    // Cavity radii based on diameter (not step) so the socket fits the dot
+    const seatInset   = clamp(diameterMm * 0.0045, 0.08, 0.16);
+    const socketWall  = clamp(diameterMm * 0.055, 1.0, 1.6);
+    const socketOpenR = (diameterMm - seatInset * 2) / 2;  // inner radius = dot clearance
+    const socketOutR  = Math.min(socketOpenR + socketWall, stepMm / 2 - 0.4); // outer bounded by step
+
+    const totalThick  = 4.0;
+    const floorThick  = 2.0;
+    const wallH       = totalThick - floorThick;
+    const outerFrame  = Math.max(3.2, seatInset + 2.6);
+    const connRail    = clamp(socketWall + 0.45, 1.8, 2.5);
+    const connDepth   = 6.0;
+    const slotSpan    = clamp(stepMm * 1.8, 18, 30);
+    const bodyMaxSide = 200 - connDepth - outerFrame * 2;
+    const colsPerPlate = Math.max(1, Math.floor(bodyMaxSide / stepMm));
+    const rowsPerPlate = Math.max(1, Math.floor(bodyMaxSide / stepMm));
+
+    return {
+      diameterMm, stepMm, totalThick, floorThick, wallH, outerFrame,
+      connRail, connDepth, slotSpan,
+      colsPerPlate, rowsPerPlate,
+      socketOpenR, socketOutR,
+      shape: controls.shapeFamily.value,
+    };
+  }
+
+  function buildBaseframePlateLayout(cfg) {
+    const plates = [];
+    let rowBlock = 0;
+    for (let yStart = 0; yStart < state.rows; yStart += cfg.rowsPerPlate) {
+      const rows = Math.min(cfg.rowsPerPlate, state.rows - yStart);
+      let colBlock = 0;
+      for (let xStart = 0; xStart < state.cols; xStart += cfg.colsPerPlate) {
+        const cols      = Math.min(cfg.colsPerPlate, state.cols - xStart);
+        const hasLeft   = xStart > 0;
+        const hasRight  = xStart + cols < state.cols;
+        const hasBottom = yStart > 0;
+        const hasTop    = yStart + rows < state.rows;
+        const lFrame    = hasLeft   ? 0 : cfg.outerFrame;
+        const rFrame    = hasRight  ? 0 : cfg.outerFrame;
+        const bFrame    = hasBottom ? 0 : cfg.outerFrame;
+        const tFrame    = hasTop    ? 0 : cfg.outerFrame;
+        const bodyW     = cols * cfg.stepMm + lFrame + rFrame;
+        const bodyH     = rows * cfg.stepMm + bFrame + tFrame;
+        const code      = `${String.fromCharCode(65 + rowBlock)}${colBlock + 1}`;
+        plates.push({
+          code, cols, rows, bodyW, bodyH,
+          hasLeft, hasRight, hasBottom, hasTop,
+          lFrame, rFrame, bFrame, tFrame,
+          cellOriginX: lFrame, cellOriginY: bFrame,
+        });
+        colBlock++;
+      }
+      rowBlock++;
+    }
+    return plates;
+  }
+
+  function buildBaseframePlateMesh(plate, cfg) {
+    const parts   = [];
+    const fZ      = cfg.floorThick;
+    const wH      = cfg.wallH;
+    const totT    = cfg.totalThick;
+    const usableW = plate.cols * cfg.stepMm;
+    const usableH = plate.rows * cfg.stepMm;
+
+    // Connector slot span centered on each side
+    const slotSpanY = Math.min(cfg.slotSpan, Math.max(6, usableH - 2));
+    const slotSpanX = Math.min(cfg.slotSpan, Math.max(6, usableW - 2));
+    const slotY0    = plate.cellOriginY + (usableH - slotSpanY) / 2;
+    const slotY1    = slotY0 + slotSpanY;
+    const slotX0    = plate.cellOriginX + (usableW - slotSpanX) / 2;
+    const slotX1    = slotX0 + slotSpanX;
+
+    // ── 1. Floor slab — full plate footprint ──
+    parts.push(buildBoxMesh(0, 0, 0, plate.bodyW, plate.bodyH, fZ));
+
+    // ── 2. Left side: outer border OR female connector slots ──
+    if (plate.hasLeft) {
+      // Two solid strips flanking the slot gap
+      parts.push(buildBoxMesh(0, 0,     fZ, cfg.connRail, slotY0,              wH));
+      parts.push(buildBoxMesh(0, slotY1, fZ, cfg.connRail, plate.bodyH - slotY1, wH));
+      // Two finger boxes inside the slot (female receptor pockets)
+      parts.push(buildBoxMesh(0, slotY0,              fZ, cfg.connDepth, cfg.connRail, wH));
+      parts.push(buildBoxMesh(0, slotY1 - cfg.connRail, fZ, cfg.connDepth, cfg.connRail, wH));
+    } else {
+      parts.push(buildBoxMesh(0, 0, fZ, plate.lFrame, plate.bodyH, wH));
+    }
+
+    // ── 3. Right side: outer border OR male connector tab ──
+    if (plate.hasRight) {
+      // Tab protrudes beyond the plate body (mates with left female slot)
+      parts.push(buildBoxMesh(plate.bodyW, slotY0, fZ, cfg.connDepth, slotSpanY, wH));
+    } else {
+      parts.push(buildBoxMesh(plate.bodyW - plate.rFrame, 0, fZ, plate.rFrame, plate.bodyH, wH));
+    }
+
+    // ── 4. Bottom side: outer border OR female connector slots ──
+    if (plate.hasBottom) {
+      parts.push(buildBoxMesh(0,      0, fZ, slotX0,              cfg.connRail, wH));
+      parts.push(buildBoxMesh(slotX1, 0, fZ, plate.bodyW - slotX1, cfg.connRail, wH));
+      parts.push(buildBoxMesh(slotX0,              0, fZ, cfg.connRail, cfg.connDepth, wH));
+      parts.push(buildBoxMesh(slotX1 - cfg.connRail, 0, fZ, cfg.connRail, cfg.connDepth, wH));
+    } else {
+      parts.push(buildBoxMesh(0, 0, fZ, plate.bodyW, plate.bFrame, wH));
+    }
+
+    // ── 5. Top side: outer border OR male connector tab ──
+    if (plate.hasTop) {
+      parts.push(buildBoxMesh(slotX0, plate.bodyH, fZ, slotSpanX, cfg.connDepth, wH));
+    } else {
+      parts.push(buildBoxMesh(0, plate.bodyH - plate.tFrame, fZ, plate.bodyW, plate.tFrame, wH));
+    }
+
+    // ── 6. Socket ring per cell (floorZ → totalThick) ──
+    const innerPoly = makePolygon2D(cfg.shape, cfg.socketOpenR);
+    const outerPoly = makePolygon2D(cfg.shape, cfg.socketOutR);
+    for (let row = 0; row < plate.rows; row++) {
+      for (let col = 0; col < plate.cols; col++) {
+        const cx = plate.cellOriginX + (col + 0.5) * cfg.stepMm;
+        const cy = plate.cellOriginY + (row + 0.5) * cfg.stepMm;
+        const inner = innerPoly.map(([x, y]) => [x + cx, y + cy]);
+        const outer = outerPoly.map(([x, y]) => [x + cx, y + cy]);
+        parts.push(buildRingPrism(outer, inner, fZ, totT));
+      }
+    }
+
+    return mergeMeshes(parts);
+  }
+
+  function buildBaseframe3MF() {
+    if (!state.grid || !state.palette.length)
+      throw new Error('Generate the project first.');
+
+    const cfg    = getBaseframeConfig();
+    const plates = buildBaseframePlateLayout(cfg);
+
+    const objects = [];
+    plates.forEach((plate, idx) => {
+      const mesh  = buildBaseframePlateMesh(plate, cfg);
+      const wcm   = round(plate.bodyW / 10, 1);
+      const hcm   = round(plate.bodyH / 10, 1);
+      objects.push({
+        name:       `BaseFrame_${plate.code}`,
+        plateName:  `BaseFrame_${plate.code} (${wcm}×${hcm} cm)`,
+        plateIndex: idx + 1,
+        colorIndex: 0,
+        mesh:       translatedMesh(mesh, 5, 5, 0),
+      });
+    });
+
+    const baseHex = '#808080';
+    const pkg     = meshTo3mfModelColored(objects, [baseHex]);
+
+    const contentTypes = `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>
+  <Default Extension="config" ContentType="text/plain"/>
+  <Default Extension="json" ContentType="application/json"/>
+</Types>`;
+    const pkgRels = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>
+</Relationships>`;
+    const modelRels = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Target="/Metadata/model_settings.config" Id="rel_model_settings" Type="http://schemas.bambulab.com/package/2021/model_settings"/>
+  <Relationship Target="/Metadata/project_settings.config" Id="rel_project_settings" Type="http://schemas.bambulab.com/package/2021/project_settings"/>
+  <Relationship Target="/Metadata/slice_info.config" Id="rel_slice_info" Type="http://schemas.bambulab.com/package/2021/slice_info"/>
+</Relationships>`;
+
+    return zipStore([
+      { name: '[Content_Types].xml',              data: contentTypes },
+      { name: '_rels/.rels',                      data: pkgRels },
+      { name: '3D/_rels/3dmodel.model.rels',      data: modelRels },
+      { name: '3D/3dmodel.model',                 data: pkg.modelXml },
+      { name: 'Metadata/model_settings.config',   data: pkg.modelSettingsXml },
+      { name: 'Metadata/project_settings.config', data: pkg.projectSettingsJson },
+      { name: 'Metadata/slice_info.config',       data: pkg.sliceInfoXml },
+    ]);
+  }
+
+  // ─────────────────────────────────────────────
   // N. Production manual (HTML)
   // ─────────────────────────────────────────────
   function buildProductionHTML() {
@@ -1419,7 +1655,7 @@ ${objectNodes}
 
     setStatus(tFmt('status.done', { cols: state.cols, rows: state.rows, colors: state.palette.length }));
 
-    [downloadMapBtn, exportStlBtn, export3mfBtn, saveProjectBtn].forEach(b => b.disabled = false);
+    [downloadMapBtn, exportStlBtn, export3mfBtn, saveProjectBtn, exportBaseframeBtn].forEach(b => b.disabled = false);
     generateBtn.disabled = false;
   }
 
@@ -1566,6 +1802,28 @@ ${objectNodes}
   downloadMapBtn.addEventListener('click', () => {
     const html = buildProductionHTML();
     downloadBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), 'dotart_manual.html');
+  });
+
+  exportBaseframeBtn.addEventListener('click', () => {
+    try {
+      exportBaseframeBtn.disabled = true;
+      exportBaseframeBtn.textContent = 'Generating…';
+      // Yield to browser so button updates before heavy computation
+      setTimeout(() => {
+        try {
+          const blob = buildBaseframe3MF();
+          const dotDia = round(Number(controls.dotDiameterCm.value), 1);
+          downloadBlob(blob, `dotart_baseframe_${controls.shapeFamily.value}_${dotDia}cm.3mf`);
+        } catch (err) {
+          setStatus('Baseframe error: ' + (err.message || err));
+        } finally {
+          exportBaseframeBtn.disabled = false;
+          exportBaseframeBtn.textContent = 'Download Full Baseframe (.3mf)';
+        }
+      }, 20);
+    } catch (err) {
+      setStatus('Baseframe error: ' + (err.message || err));
+    }
   });
 
   // Language picker
